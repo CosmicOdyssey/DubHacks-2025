@@ -9,7 +9,7 @@ modules:
       handler: backend/resolvers.handler
   jira:projectPage:
     - key: dee-demo-hello-world-project-page
-      title: DEE Demo
+      title: CodeGraph UW
       resource: ui
       resolver:
         function: main-resolver
@@ -21,3 +21,7 @@ resources:
 permissions:
   scopes:
     - storage:app
+  external:
+    fetch:
+      backend:
+        - address: generativelanguage.googleapis.com
