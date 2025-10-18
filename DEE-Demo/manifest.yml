@@ -1,47 +1,23 @@
-app:app:
-
-  id: ari:cloud:ecosystem::app/75403e69-092d-4ed1-a68c-ea312f1601e4  id: ari:cloud:ecosystem::app/75403e69-092d-4ed1-a68c-ea312f1601e4
-
-  name: DEE Demo  runtime:
-
-  runtime:    name: nodejs20.x
-
+app:
+  id: ari:cloud:ecosystem::app/75403e69-092d-4ed1-a68c-ea312f1601e4
+  runtime:
     name: nodejs20.x
 
-modules:permissions:
-
-  function:  scopes:
-
-    - key: main-resolver    - storage:app
-
-      handler: backend/resolvers.handler    # add read:jira-work later if your resolver needs Jira data
-
-  jira:projectPage:    # - read:jira-work
-
-    - key: dee-demo-hello-world-project-page    # - read:user:jira
-
+modules:
+  function:
+    - key: main-resolver
+      handler: backend/resolvers.handler
+  jira:projectPage:
+    - key: dee-demo-hello-world-project-page
       title: DEE Demo
-
-      resolver:modules:
-
-        function: main-resolver  function:
-
-      resource: ui    - key: main-resolver
-
-resources:      handler: backend/resolvers.handler
-
-  - key: ui  jira:projectPage:
-
-    path: static/ui    - key: dee-demo-hello-world-project-page
-
-permissions:      title: DEE Demo
-
-  scopes:      resource: ui
-
-    - storage:app      resolver:
-
+      resource: ui
+      resolver:
         function: main-resolver
 
 resources:
   - key: ui
-    path: static/ui   # must contain index.html after build
+    path: static/ui
+
+permissions:
+  scopes:
+    - storage:app
