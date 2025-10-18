@@ -1,0 +1,15 @@
+{
+  "epoch": "2025-10-27",
+  "params": { "alpha": 0.6, "beta": 0.6, "tauWeeks": 6 },
+  "nodes": [
+    { "id": "u:alice", "type": "person", "labels": ["Alice"], "MB": 45, "MF": 8, "I": 8.7, "B": 1.2, "Q": 0.95, "C": 1.1, "R": 1.0, "V": 1.0 },
+    { "id": "u:bob", "type": "person", "labels": ["Bob"], "MB": 27, "MF": 12, "I": 5.7, "B": 1.0, "Q": 0.8, "C": 1.2, "R": 1.05, "V": 0.9 },
+    { "id": "a:design-system", "type": "artifact", "labels": ["Design System"], "MB": 34, "MF": 2 },
+    { "id": "a:auth-module", "type": "artifact", "labels": ["Auth Module"], "MB": 11, "MF": 9 }
+  ],
+  "edges": [
+    { "source": "u:alice", "target": "a:design-system", "relation": "authored", "weight": 0.8 },
+    { "source": "u:bob", "target": "a:auth-module", "relation": "authored", "weight": 0.7 },
+    { "source": "a:auth-module", "target": "a:design-system", "relation": "depends_on", "weight": 0.4 }
+  ]
+}
