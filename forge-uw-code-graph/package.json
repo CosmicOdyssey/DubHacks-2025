@@ -1,0 +1,34 @@
+{
+  "name": "forge-uw-code-graph",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "forge deploy --no-interactive",
+    "deploy": "forge deploy",
+    "lint": "eslint --ext .ts,.tsx src",
+    "test": "vitest",
+    "ui:dev": "cd src/custom-ui/webapp && npm install && npm run dev"
+  },
+  "dependencies": {
+    "@forge/api": "^6.1.4",
+    "@forge/ui": "^1.11.4",
+    "@forge/resolver": "^1.7.0",
+    "@forge/storage": "^2.0.2",
+    "adm-zip": "^0.5.10",
+    "axios": "^1.7.2",
+    "cuid": "^3.0.0",
+    "papaparse": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.34.1",
+    "prettier": "^3.2.5",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.1"
+  }
+}

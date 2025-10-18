@@ -1,6 +1,6 @@
+node_modules
+.DS_Store
 .env
-.env.*
-!.env.example
-node_modules/
-dist/
-static/ui/assets/
+src/custom-ui/webapp/node_modules
+src/custom-ui/webapp/dist
+forge-resources.zip

@@ -1,0 +1,27 @@
+modules:
+  jira:projectPage:
+    - key: code-visualization-main-page
+      resource: code-visualization-ui
+      resolver:
+        function: resolver
+      title: Code Visualization Agent
+  function:
+    - key: resolver
+      handler: index.handler
+resources:
+  - key: code-visualization-ui
+    path: static/code-visualization
+app:
+  runtime:
+    name: nodejs20.x
+  id: ari:cloud:ecosystem::app/1f79dd0d-dd70-4d28-8d67-b1753ec50e14
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+    - read:jira-user
+    - storage:app
+  external:
+    fetch:
+      client:
+        - address: https://*.googleapis.com

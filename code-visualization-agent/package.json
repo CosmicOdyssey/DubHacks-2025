@@ -1,0 +1,50 @@
+{
+  "name": "code-visualization-agent",
+  "version": "1.0.0",
+  "description": "Atlassian Forge app for code visualization and task delegation",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "npm run build:ui",
+    "build:ui": "esbuild src/frontend/index.jsx --bundle --outfile=static/code-visualization/app.js --format=iife --platform=browser --loader:.js=jsx --loader:.jsx=jsx --define:process.env.NODE_ENV='\"production\"'",
+    "start": "forge tunnel",
+    "deploy": "npm run build && forge deploy",
+    "install-forge": "forge install",
+    "logs": "forge logs",
+    "lint": "eslint src/ --ext .js,.jsx"
+  },
+  "dependencies": {
+    "@forge/api": "^2.15.0",
+    "@forge/resolver": "^1.5.0",
+    "@forge/storage": "^1.4.0",
+    "@forge/bridge": "^1.0.0",
+    "@babel/parser": "^7.23.0",
+    "@babel/traverse": "^7.23.0",
+    "typescript": "^5.0.0",
+    "acorn": "^8.10.0",
+    "acorn-walk": "^8.2.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@forge/cli": "^6.0.0",
+    "esbuild": "^0.21.5",
+    "eslint": "^8.0.0",
+    "eslint-plugin-react": "^7.33.0"
+  },
+  "keywords": [
+    "atlassian",
+    "forge",
+    "jira",
+    "code-analysis",
+    "visualization",
+    "task-delegation",
+    "ai",
+    "gemini"
+  ],
+  "author": "UW Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/code-visualization-agent"
+  }
+}

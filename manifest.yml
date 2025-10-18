@@ -1,0 +1,79 @@
+app:
+  id: ari:cloud:ecosystem::app/uw-code-graph-agent
+  runtime: nodejs18.x
+
+modules:
+  jira:projectPage:
+    - key: uw-code-graph-config-page
+      resource: project-page
+      resolver:
+        function: resolver
+      title: UW Code Graph
+      description: Configure repository ingest and analysis
+      viewportSize: medium
+  jira:issueGlance:
+    - key: uw-code-graph-issue-glance
+      resource: issue-glance
+      resolver:
+        function: resolver
+      title: UW Code Blocks
+      description: Surface linked code blocks for the current issue
+  webtrigger:
+    - key: uw-code-graph-ingest-trigger
+      function: resolver
+      handler: ingestRepo
+      description: Accepts repository ingest jobs
+    - key: uw-code-graph-analyze-trigger
+      function: resolver
+      handler: analyzeRepo
+      description: Runs Gemini summarisation batches
+    - key: uw-code-graph-delegate-trigger
+      function: resolver
+      handler: delegateApply
+      description: Creates Jira issues from delegation suggestions
+  customUI:
+    - key: uw-code-graph-explorer
+      resource: graph-ui
+      resolver:
+        function: resolver
+      title: UW Code Graph Explorer
+      route: /graph
+      viewportSize: xlarge
+
+resources:
+  - key: resolver
+    path: src/index.ts
+    handler: handler
+  - key: project-page
+    path: src/index.ts
+    handler: projectPage
+  - key: issue-glance
+    path: src/index.ts
+    handler: issueGlance
+  - key: graph-ui
+    path: src/custom-ui/webapp/dist
+
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+    - read:jira-user
+    - write:jira-user
+    - storage:app
+  external:
+    fetch:
+      client:
+        - https://generativelanguage.googleapis.com
+
+providers:
+  deployment:
+    - key: default-deployment
+      environments:
+        - development
+        - staging
+        - production
+
+remotes:
+  # Example external storage resolver (disabled by default)
+  # - key: uw-code-graph-external-storage
+  #   baseUrl: https://uw-code-graph.example.edu
