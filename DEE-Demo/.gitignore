@@ -1,26 +1,4 @@
-#############################
-# Forge app-level ignore rules
-#############################
-
-# Secrets
 .env
-.env.*
-!.env.example
-
-# Dependencies
-node_modules/
-
-# Build outputs
-dist/
-static/ui/
-
-# Atlassian Forge working dir
-.forge/
-
-# OS/IDE
-.DS_Store
-Thumbs.db
-.idea/.env
 .env.*
 !.env.example
 node_modules/
