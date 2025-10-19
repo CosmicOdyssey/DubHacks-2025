@@ -19,6 +19,7 @@ export default function App() {
       .finally(() => setLoading(false))
   }, [epoch])
 
+<<<<<<< Updated upstream
   const filteredGraph = useMemo(() => {
     let g = graph
     if (filters.type !== 'all') {
@@ -29,18 +30,132 @@ export default function App() {
     }
     if (filters.milestoneOnly) {
       g = { ...g, nodes: g.nodes.filter((n) => (n.labels || []).includes('milestone') || n.type === 'event') }
+=======
+  async function loadGraph() {
+    setLoading(true);
+    setError(null);
+    try {
+  const res = await invoke('codegraph-demo-resolver', {
+        path: '/graph',
+        payload: { projectId: 'default' }
+      });
+      if (res && res.ok) {
+        setGraph(res.graph);
+      } else {
+        console.warn('Graph load returned:', res);
+      }
+    } catch (e) {
+      console.error('Failed to load graph:', e);
+      setError('Failed to load graph: ' + e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function ping() {
+    setError(null);
+    try {
+  const res = await invoke('codegraph-demo-resolver', { path: '/ping' });
+      setResult(res);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function clearGraph() {
+    if (!window.confirm('Are you sure you want to clear the entire graph?')) return;
+
+    setError(null);
+    try {
+  await invoke('codegraph-demo-resolver', {
+        path: '/clear',
+        payload: { projectId: 'default' }
+      });
+      await loadGraph();
+    } catch (e) {
+      setError(String(e));
+>>>>>>> Stashed changes
     }
     return g
   }, [graph, filters])
 
   return (
-    <div className="app-root">
-      <header className="app-header">
-        <h2 style={{ margin: 0, marginRight: 12 }}>Dynamic Equity Engine — Graph</h2>
-        <div className="row">
-          <label>Epoch</label>
-          <input type="range" min={0} max={12} value={epoch} onChange={(e) => setEpoch(Number(e.target.value))} />
-          <span>{epoch}</span>
+    <div style={{
+      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      {/* Header */}
+      <div style={{
+        background: 'linear-gradient(135deg, #0052CC 0%, #2684FF 100%)',
+        color: 'white',
+        padding: '20px 24px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      }}>
+  <h1 style={{ margin: 0, fontSize: 24 }}>CodeGraph Demo (Dev)</h1>
+        <p style={{ margin: '4px 0 0', opacity: 0.9, fontSize: 14 }}>
+          AI-Powered Codebase Knowledge Graph for Team Collaboration
+        </p>
+      </div>
+
+      {/* Tab Navigation */}
+      <div style={{
+        display: 'flex',
+        background: '#F4F5F7',
+        borderBottom: '1px solid #DFE1E6'
+      }}>
+        <button
+          onClick={() => setActiveTab('graph')}
+          style={tabStyle(activeTab === 'graph')}
+        >
+          Knowledge Graph
+        </button>
+        <button
+          onClick={() => setActiveTab('upload')}
+          style={tabStyle(activeTab === 'upload')}
+        >
+          Upload Code
+        </button>
+        <button
+          onClick={() => setActiveTab('status')}
+          style={tabStyle(activeTab === 'status')}
+        >
+          Status
+        </button>
+
+        {/* Actions on the right */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px' }}>
+          <button
+            onClick={loadGraph}
+            disabled={loading}
+            style={{
+              padding: '6px 12px',
+              background: '#fff',
+              border: '1px solid #DFE1E6',
+              borderRadius: 3,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: 12,
+              fontWeight: 500
+            }}
+          >
+            {loading ? 'Loading...' : 'Refresh'}
+          </button>
+          <button
+            onClick={clearGraph}
+            style={{
+              padding: '6px 12px',
+              background: '#fff',
+              border: '1px solid #DE350B',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 500,
+              color: '#DE350B'
+            }}
+          >
+            Clear Graph
+          </button>
         </div>
         <div className="spacer">
           <Filter label="Type" value={filters.type} onChange={(v) => setFilters((f) => ({ ...f, type: v }))} options={[[
