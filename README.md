@@ -25,9 +25,7 @@ After installation, open any Jira project and select **CodeGraph UW** from the l
 
 ## Documentation
 
-- `DEE-Demo/QUICKSTART.md` – 5-minute setup guide
-- `DEE-Demo/SETUP_INSTRUCTIONS.md` – Detailed command-by-command walkthrough
-- `DEE-Demo/DEPLOY_NOW.md` – Final deployment checklist
-- `DEE-Demo/CODEGRAPH_SETUP.md` – Full architecture and workflow reference
+- `DEE-Demo/FORGE_DEPLOYMENT_GUIDE.md` – End-to-end instructions for deploying to Atlassian Forge
+- `DEE-Demo/CODEGRAPH_SETUP.md` – Architecture, data flow, and customization reference
 
-Refer to these documents for environment setup, deployment tips, and troubleshooting.
+Use these guides for environment setup, deployment, and deeper technical context.

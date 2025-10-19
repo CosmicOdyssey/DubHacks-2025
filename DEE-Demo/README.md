@@ -16,7 +16,8 @@ CodeGraph UW is an Atlassian Forge project page that turns uploaded source files
 - `ui/` – React source; run Vite locally, build with `npm run build`
 - `static/ui/` – Generated UI bundle served by Forge (do not edit by hand)
 - `local-test/` – Standalone HTML/JS prototype used for quick UI iterations
-- `QUICKSTART.md`, `SETUP_INSTRUCTIONS.md`, `DEPLOY_NOW.md`, `CODEGRAPH_SETUP.md` – Operational docs
+- `FORGE_DEPLOYMENT_GUIDE.md` – End-to-end Forge deployment instructions
+- `CODEGRAPH_SETUP.md` – Architecture and customization reference
 
 ## Prerequisites
 
@@ -51,7 +52,7 @@ After installation, open any Jira project and select **CodeGraph UW** in the lef
 
 ## Next Steps
 
-- Read `QUICKSTART.md` for a five-minute setup walkthrough
+- Work through `FORGE_DEPLOYMENT_GUIDE.md` if you need a detailed deployment checklist
 - Use `CODEGRAPH_SETUP.md` to understand architecture and storage
 - Customize Gemini prompts or graph logic inside `backend/resolvers.js`
 - Explore the Cytoscape component in `ui/src/components/GraphView.jsx` to tweak layout, colors, or interactions
