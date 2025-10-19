@@ -19,34 +19,19 @@ npm install
 
 `npm install` pulls dependencies for the backend resolver and utility scripts.
 
-## 3. Configure Secrets
+## 3. Configure API Keys
 
-Store your Gemini key in the Forge environment (only needed once per environment):
-
-```bash
-forge variables set GEMINI_API_KEY your_api_key_here
-```
-
-- The first time you run this command Forge asks for an environment name. Use something like `development`.
-- Verify the variable is present:
+Create the config file from the template and add your API keys:
 
 ```bash
-forge variables list
+cd DEE-Demo
+cp config.example.js config.js
+# Edit config.js and add your GitHub token and Gemini API key
 ```
 
-You should see `GEMINI_API_KEY` listed for your chosen environment.
+The `config.js` file is used by both the frontend and backend for API authentication.
 
-## 4. Build the Forge UI
-
-Forge serves static files from `static/ui/`. The build step copies the Obsidian-style prototype (`local-test/index-v2.html`) into that folder:
-
-```bash
-npm run build
-```
-
-You should see log output confirming that `index-v2.html` and `app-v2.js` were copied into `static/ui/`.
-
-## 5. Lint & Deploy to Forge
+## 4. Deploy to Forge
 
 ```bash
 forge lint
@@ -56,7 +41,7 @@ forge deploy
 - `forge lint` checks the manifest for common errors (scopes, modules, etc.).
 - `forge deploy` uploads the backend and the newly built UI bundle to your Forge environment.
 
-## 6. Install the App in Jira
+## 5. Install the App in Jira
 
 ```bash
 forge install --upgrade --site https://YOUR-SITE.atlassian.net --product jira
@@ -73,7 +58,7 @@ If you need to remove a previous install first:
 forge uninstall --site https://YOUR-SITE.atlassian.net --product jira --environment ENV_NAME
 ```
 
-## 7. Verify in Jira
+## 6. Verify in Jira
 
 1. Open Jira at `https://YOUR-SITE.atlassian.net`.
 2. Navigate to any project.

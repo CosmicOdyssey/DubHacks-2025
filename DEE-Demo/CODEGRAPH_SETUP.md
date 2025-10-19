@@ -36,47 +36,29 @@ npm install
 
 ### 3. Configure API Keys
 
-Create config files from the templates:
-
-**For Local Development (local-test/):**
-```bash
-cd DEE-Demo/local-test
-cp config.example.js config.js
-# Edit config.js and add your GitHub token and Gemini API key
-```
-
-**For Forge Deployment (root DEE-Demo/):**
 ```bash
 cd DEE-Demo
 cp config.example.js config.js
 # Edit config.js and add your GitHub token and Gemini API key
 ```
 
-**Important:** Both `config.js` files are gitignored for security. Never commit API keys to version control.
+**Important:** `config.js` is gitignored for security. Never commit API keys to version control.
 
-### 4. Build the UI
-
-```bash
-npm run build
-```
-
-This creates the `static/ui/` directory which Forge will serve.
-
-### 5. Deploy to Forge
+### 4. Deploy to Forge
 
 ```bash
 forge lint && forge deploy
 ```
 
-### 6. Install to Your Jira Site
+### 5. Install to Your Jira Site
 
 ```bash
-forge install --upgrade --site https://michaelzhou2025.atlassian.net --product jira
+forge install --upgrade --site https://YOUR-SITE.atlassian.net --product jira
 ```
 
 Replace `YOUR-SITE` with your Atlassian site name.
 
-### 7. Access the App
+### 6. Access the App
 
 1. Go to any Jira project
 2. In the left sidebar, click **"DEE Demo"** (or **"CodeGraph UW"**)
