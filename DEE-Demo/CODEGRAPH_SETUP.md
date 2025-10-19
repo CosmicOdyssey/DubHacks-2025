@@ -34,29 +34,26 @@ cd DEE-Demo
 npm install
 ```
 
-### 3. Set Environment Variable
+### 3. Configure API Keys
 
-Set your Gemini API key as a Forge environment variable:
+Edit `local-test/config.js` (do not commit real keys) so it looks like:
 
-```bash
-forge variables set GEMINI_API_KEY AIzaSyDqUF1H5zH-NhBxYiZjrqQlN3Nnyo9mkZ0
+```js
+export const CONFIG = {
+  GITHUB_TOKEN: 'your_github_pat',
+  GEMINI_API_KEY: 'your_gemini_key'
+};
 ```
 
-Note: The first time you run this, Forge will prompt you to create a development environment name (e.g., "development"). This is required for environment variables.
-
-Verify it was set:
-
-```bash
-forge variables list
-```
+These values are copied into `static/ui/config.js` during the build and are used by the Forge iframe to authenticate GitHub and Gemini requests.
 
 ### 4. Build the UI
 
 ```bash
-npm run build
+node scripts/build-index-v2.mjs
 ```
 
-This creates the `static/ui/` directory which Forge will serve.
+This creates the `static/ui/` directory by copying the prototype assets (HTML, JS, CSS, config, D3) Forge will serve.
 
 ### 5. Deploy to Forge
 
@@ -137,7 +134,7 @@ This allows you to:
 
 For UI changes, you still need to:
 ```bash
-npm run build
+node scripts/build-index-v2.mjs
 ```
 
 ### Testing the UI Locally (Without Forge)
@@ -151,7 +148,7 @@ Access at http://localhost:5173. Note: Backend resolvers won't work in this mode
 ### Deploy After Changes
 
 ```bash
-npm run build
+node scripts/build-index-v2.mjs
 forge deploy
 ```
 
@@ -308,13 +305,11 @@ Edit the prompt in `backend/resolvers.js:13-37`.
 
 ## Troubleshooting
 
-### "GEMINI_API_KEY environment variable not set"
+### "CONFIG not found"
 
-Run:
-```bash
-forge variables:set GEMINI_API_KEY your_key_here
-forge deploy
-```
+- Confirm `local-test/config.js` exports `CONFIG` with both keys.
+- Re-run `node scripts/build-index-v2.mjs` to copy it into `static/ui/`.
+- Deploy again with `forge deploy`.
 
 ### Graph doesn't load
 
@@ -331,7 +326,7 @@ Gemini Flash has a free tier limit (15 requests/minute). Wait a minute or upgrad
 ```bash
 rm -rf node_modules package-lock.json
 npm install
-npm run build
+node scripts/build-index-v2.mjs
 ```
 
 ### Forge deployment fails

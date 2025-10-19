@@ -271,16 +271,16 @@ function initDotGrid() {
   const config = {
     dotSize: 3,
     gap: 30,
-    baseColor: { r: 82, g: 39, b: 255 }, // #5227FF
-    activeColor: { r: 132, g: 0, b: 255 }, // #8400FF
+    baseColor: { r: 0, g: 82, b: 204 }, // #0052CC
+    activeColor: { r: 7, g: 71, b: 166 }, // #0747A6
     proximity: 120,
     speedTrigger: 100,
     shockRadius: 200,
     shockStrength: 2,
     returnDuration: 800, // ms
     returnEase: 0.15,
-    baseOpacity: 0.3,
-    activeOpacity: 0.7
+    baseOpacity: 0.18,
+    activeOpacity: 0.45
   };
 
   // Create canvas
@@ -538,7 +538,7 @@ function initGraph() {
     .attr('markerHeight', 8)
     .append('path')
     .attr('d', 'M 0,-5 L 10,0 L 0,5')
-    .attr('fill', 'rgba(255, 255, 255, 0.4)');
+    .attr('fill', 'rgba(0, 82, 204, 0.45)');
 
   // Add glow filter
   const filter = defs.append('filter')
@@ -638,11 +638,11 @@ function renderGraph() {
 
   // Node type colors
   const nodeColors = {
-    file: '#8400FF',
-    class: '#00D4FF',
-    function: '#00FF88',
-    variable: '#FFB800',
-    import: '#FF006E'
+    file: '#0052CC',
+    class: '#2684FF',
+    function: '#36B37E',
+    variable: '#FFAB00',
+    import: '#FF5630'
   };
 
   // Create a copy of filtered nodes and edges for D3
@@ -696,7 +696,7 @@ function renderGraph() {
     .selectAll('line')
     .data(edges)
     .join('line')
-    .attr('stroke', 'rgba(132, 0, 255, 0.4)')
+    .attr('stroke', 'rgba(0, 82, 204, 0.35)')
     .attr('stroke-width', 3)
     .attr('marker-end', 'url(#arrowhead)')
     .style('opacity', 0);
@@ -719,7 +719,7 @@ function renderGraph() {
   // Add circles to nodes
   node.append('circle')
     .attr('r', d => calculateRadius(d))
-    .attr('fill', d => nodeColors[d.type] || '#8400FF')
+    .attr('fill', d => nodeColors[d.type] || '#0052CC')
     .attr('stroke', 'rgba(255, 255, 255, 0.3)')
     .attr('stroke-width', 2)
     .style('filter', 'url(#glow)');
@@ -767,7 +767,7 @@ function renderGraph() {
     link.attr('stroke', l => 
       (l.source.id === d.id || l.target.id === d.id) 
         ? 'rgba(132, 0, 255, 1)' 
-        : 'rgba(132, 0, 255, 0.4)'
+        : 'rgba(0, 82, 204, 0.35)'
     )
     .attr('stroke-width', l =>
       (l.source.id === d.id || l.target.id === d.id) ? 5 : 3
@@ -783,7 +783,7 @@ function renderGraph() {
       .attr('r', d => calculateRadius(d)) // Return to original calculated radius
       .attr('stroke-width', 2);
 
-    link.attr('stroke', 'rgba(132, 0, 255, 0.4)')
+    link.attr('stroke', 'rgba(0, 82, 204, 0.35)')
       .attr('stroke-width', 3);
   })
   .on('click', function(event, d) {
@@ -851,14 +851,14 @@ function updateNodeInfo() {
   }
 
   const nodeColors = {
-    file: '#8400FF',
-    class: '#00D4FF',
-    function: '#00FF88',
-    variable: '#FFB800',
-    import: '#FF006E'
+    file: '#0052CC',
+    class: '#2684FF',
+    function: '#36B37E',
+    variable: '#FFAB00',
+    import: '#FF5630'
   };
 
-  const color = nodeColors[node.type] || '#8400FF';
+  const color = nodeColors[node.type] || '#0052CC';
 
   let metadataHTML = '';
   if (node.metadata) {
@@ -916,8 +916,8 @@ function updateNodeInfo() {
   `;
 
   nodeDetailsDiv.style.display = 'block';
-  nodeDetailsDiv.style.border = `1px solid ${color}`;
-  nodeDetailsDiv.style.boxShadow = `0 8px 32px ${color}40`;
+  nodeDetailsDiv.style.border = '1px solid rgba(0, 82, 204, 0.25)';
+  nodeDetailsDiv.style.boxShadow = '0 12px 24px rgba(9, 30, 66, 0.2)';
 }
 
 // Show node details (legacy compatibility)
