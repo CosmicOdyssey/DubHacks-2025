@@ -102,7 +102,7 @@ async function fetchFileContent(owner, repo, path, branch = 'main') {
 
 // Analyze code with Gemini AI
 async function analyzeWithGemini(code, filename) {
-  const prompt = `Analyze this code file and extract structured metadata for knowledge graph visualization.
+  const prompt = `Analyze this code file to extract a detailed knowledge graph node.
 
 Filename: ${filename}
 
@@ -111,21 +111,27 @@ Code:
 ${code.substring(0, 8000)}
 \`\`\`
 
-Return JSON with this structure:
+Return a detailed JSON object with the following structure:
 {
-  "title": "Short descriptive name (2-4 words)",
-  "purpose": "One sentence describing what this file does",
+  "title": "A concise, descriptive name (4-6 words)",
+  "purpose": "A 2-3 sentence summary explaining the file's role, its main responsibilities, and how it fits into the broader application.",
   "blockType": "frontend|backend|database|auth|utils|config|test|other",
-  "complexity": "low|medium|high",
+  "complexity": "low|medium|high|very-high",
+  "keyExports": {
+    "functions": ["list key exported functions, e.g., 'getUser()'"],
+    "classes": ["list key exported classes or components, e.g., 'UserProfile'"],
+    "variables": ["list key exported constants or configurations"]
+  },
+  "coreLogic": "A brief paragraph (3-5 sentences) describing the most important logic or functionality within the code. Mention specific functions or methods if applicable.",
   "dependencies": {
     "external": ["library names only, e.g., 'react', 'express'"],
     "internal": ["relative file paths imported, e.g., './utils/helper.js'"],
     "apis": ["external APIs called, e.g., 'GitHub API', 'Stripe API'"]
   },
-  "relatedConcepts": ["key domain concepts, 2-5 max"]
+  "relatedConcepts": ["key technical or domain concepts, up to 5"]
 }
 
-Keep it MINIMAL. Focus on helping visualize the repository structure.`;
+Provide detailed and specific information based directly on the code provided.`;
 
   const response = await fetch(GEMINI_API_URL, {
     method: 'POST',
@@ -175,7 +181,9 @@ function addToGraph(filename, analysis) {
     metadata: {
       purpose: analysis.purpose || '',
       complexity: analysis.complexity || 'medium',
-      relatedConcepts: analysis.relatedConcepts || []
+      relatedConcepts: analysis.relatedConcepts || [],
+      coreLogic: analysis.coreLogic || '',
+      keyExports: analysis.keyExports || {}
     }
   };
 
@@ -563,25 +571,57 @@ function updateNodeInfo() {
 
   let metadataHTML = '';
   if (node.metadata) {
-    metadataHTML = '<div style="font-size: 11px; color: rgba(255, 255, 255, 0.6); margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.1);">';
+    metadataHTML = '<div class="metadata-section">';
     for (const [key, value] of Object.entries(node.metadata)) {
+      let displayValue = '';
       if (Array.isArray(value) && value.length > 0) {
-        metadataHTML += `<div style="margin-bottom: 4px;"><span style="color: rgba(255, 255, 255, 0.4);">${key}:</span> ${value.join(', ')}</div>`;
+        displayValue = value.join(', ');
+      } else if (typeof value === 'object' && value !== null && Object.keys(value).length > 0) {
+        // Handle nested objects like keyExports
+        displayValue = Object.entries(value)
+          .filter(([k, v]) => Array.isArray(v) && v.length > 0)
+          .map(([k, v]) => `<strong>${k}:</strong> ${v.join(', ')}`)
+          .join('<br>');
       } else if (!Array.isArray(value) && value) {
-        metadataHTML += `<div style="margin-bottom: 4px;"><span style="color: rgba(255, 255, 255, 0.4);">${key}:</span> ${String(value)}</div>`;
+        displayValue = String(value);
+      }
+
+      if (displayValue) {
+        metadataHTML += `<div class="metadata-item">
+          <span class="metadata-key">${key}:</span>
+          <span class="metadata-value">${displayValue}</span>
+        </div>`;
       }
     }
     metadataHTML += '</div>';
   }
 
+  // Code preview logic
+  let codePreviewHTML = '';
+  if (node.type === 'file' && fileContents.has(node.filename)) {
+    const fileContent = fileContents.get(node.filename);
+    const codeSnippet = fileContent.split('\n').slice(0, 15).join('\n'); // Get first 15 lines
+    
+    // Basic escaping for HTML
+    const escapedCode = codeSnippet.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    codePreviewHTML = `
+      <div class="code-preview-container">
+        <div class="code-preview-title">Code Preview</div>
+        <pre class="code-preview"><code>${escapedCode}</code></pre>
+      </div>
+    `;
+  }
+
   nodeDetailsDiv.innerHTML = `
-    <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: ${color}; margin-bottom: 8px; font-weight: 600;">
+    <div class="node-type" style="color: ${color};">
       ${node.type}
     </div>
-    <div style="font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 8px; word-break: break-word;">
+    <div class="node-label">
       ${node.label || node.name || node.id}
     </div>
     ${metadataHTML}
+    ${codePreviewHTML}
   `;
 
   nodeDetailsDiv.style.display = 'block';
