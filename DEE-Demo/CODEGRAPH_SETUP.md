@@ -34,21 +34,25 @@ cd DEE-Demo
 npm install
 ```
 
-### 3. Set Environment Variable
+### 3. Configure API Keys
 
-Set your Gemini API key as a Forge environment variable:
+Create config files from the templates:
 
+**For Local Development (local-test/):**
 ```bash
-forge variables set GEMINI_API_KEY AIzaSyDqUF1H5zH-NhBxYiZjrqQlN3Nnyo9mkZ0
+cd DEE-Demo/local-test
+cp config.example.js config.js
+# Edit config.js and add your GitHub token and Gemini API key
 ```
 
-Note: The first time you run this, Forge will prompt you to create a development environment name (e.g., "development"). This is required for environment variables.
-
-Verify it was set:
-
+**For Forge Deployment (root DEE-Demo/):**
 ```bash
-forge variables list
+cd DEE-Demo
+cp config.example.js config.js
+# Edit config.js and add your GitHub token and Gemini API key
 ```
+
+**Important:** Both `config.js` files are gitignored for security. Never commit API keys to version control.
 
 ### 4. Build the UI
 

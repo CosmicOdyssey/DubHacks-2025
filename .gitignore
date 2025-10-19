@@ -2,6 +2,10 @@
 .env.*
 !.env.example
 
+# API Configuration (contains secrets)
+local-test/config.js
+config.js
+
 # Node dependencies
 node_modules/
 **/node_modules/

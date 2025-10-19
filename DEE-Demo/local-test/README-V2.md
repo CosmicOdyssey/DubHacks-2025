@@ -30,18 +30,25 @@ This enhanced version can analyze **entire GitHub repositories** and creates an 
 
 ### How to Use
 
-1. **Start the server (from `DEE-Demo/`):**
+1. **Configure API keys:**
+   ```bash
+   cd local-test
+   cp config.example.js config.js
+   # Edit config.js and add your GitHub token and Gemini API key
+   ```
+
+2. **Start the server (from `DEE-Demo/`):**
    ```bash
    npm run dev
    ```
    This serves `local-test/index-v2.html` on <http://localhost:8000/>.
 
-2. **Open in browser (if it doesn't open automatically):**
+3. **Open in browser (if it doesn't open automatically):**
    ```
    http://localhost:8000/index-v2.html
    ```
 
-3. **Analyze a repository:**
+4. **Analyze a repository:**
    - Default: `https://github.com/facebook/react` (already filled in)
    - Or enter any GitHub repo URL
    - Click "🔍 Analyze Repository"
@@ -94,10 +101,15 @@ const filesToAnalyze = files.slice(0, 20); // Change 20 to desired number
 
 ### Technical Details
 
+**API Configuration:**
+- GitHub token and Gemini API key stored in `config.js` (gitignored)
+- Use `config.example.js` as a template
+- Never commit real API keys to version control
+
 **GitHub API:**
 - Uses GitHub REST API to fetch repository tree
 - Fetches file contents via Contents API
-- No authentication required for public repos
+- Authentication via GitHub token in config.js
 
 **Gemini Analysis:**
 - Sends each file to Gemini 2.5 Flash
@@ -139,9 +151,13 @@ forge install --upgrade --site https://YOUR-SITE.atlassian.net --product jira
 
 ### Troubleshooting
 
+**"CONFIG is not defined" error**
+- Make sure you created `config.js` from `config.example.js`
+- Verify that config.js is loaded before app-v2.js in the HTML file
+
 **"GitHub API error: 403"**
 - You've hit GitHub's rate limit (60 requests/hour for unauthenticated)
-- Wait an hour or add GitHub token
+- Make sure you've added a valid GitHub token in config.js
 
 **"Too many Gemini requests"**
 - Gemini free tier: 15 requests/minute

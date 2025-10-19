@@ -29,6 +29,7 @@ async function main() {
   await copyFile('app-v2.js', 'app-v2.js');
   await copyFile('styles.css', 'styles.css');
   await copyFile('cytoscape.min.js', 'cytoscape.min.js');
+  await copyFile('config.js', 'config.js');
 
   console.log('\nForge UI build ready at static/ui/');
   console.log('Deploy with: forge deploy');

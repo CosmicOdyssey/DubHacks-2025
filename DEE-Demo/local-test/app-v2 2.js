@@ -1,6 +1,9 @@
-// Gemini API Configuration
-const GEMINI_API_KEY = 'AIzaSyDqUF1H5zH-NhBxYiZjrqQlN3Nnyo9mkZ0';
+// API Configuration - loaded from config.js
+const GEMINI_API_KEY = CONFIG.GEMINI_API_KEY;
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+
+// GitHub configuration
+const GITHUB_TOKEN = CONFIG.GITHUB_TOKEN;
 
 // Graph data
 let graphData = { nodes: [], edges: [] };
@@ -29,9 +32,6 @@ function parseGitHubUrl(url) {
     repo: match[2].replace(/\.git$/, '')
   };
 }
-
-// GitHub configuration
-const GITHUB_TOKEN = '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';
 
 // Fetch repository file tree from GitHub
 async function fetchRepoTree(owner, repo, branch = 'main') {

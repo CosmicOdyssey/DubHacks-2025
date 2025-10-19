@@ -1,13 +1,14 @@
 import { storage, fetch } from '@forge/api';
+import { CONFIG } from '../config.js';
 
 // ============================================================================
 // GEMINI FLASH API INTEGRATION
 // ============================================================================
 
 async function analyzeCodeWithGemini(code, filename) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = CONFIG.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY environment variable not set');
+    throw new Error('GEMINI_API_KEY not configured in config.js');
   }
 
   const prompt = `Analyze this code file and extract structured information:

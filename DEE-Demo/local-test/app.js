@@ -4,8 +4,8 @@ if (typeof cytoscape !== 'undefined' && typeof coseBilkent !== 'undefined') {
   console.log('Cytoscape cose-bilkent layout registered');
 }
 
-// Gemini API Configuration
-const GEMINI_API_KEY = 'AIzaSyDqUF1H5zH-NhBxYiZjrqQlN3Nnyo9mkZ0';
+// API Configuration - loaded from config.js
+const GEMINI_API_KEY = CONFIG.GEMINI_API_KEY;
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 // Graph data storage
