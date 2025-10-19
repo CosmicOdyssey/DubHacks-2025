@@ -667,7 +667,7 @@ function renderGraph() {
     const normalizedRank = (d.pageRank - minRank) / (maxRank - minRank);
     
     // Apply a power scale to exaggerate higher values. Exponent > 1.
-    const powerScaledRank = Math.pow(normalizedRank, 2); 
+    const powerScaledRank = Math.pow(normalizedRank, 1.5); 
     
     // Define max bonus size and apply it
     const maxBonus = 40; // Max additional radius for the most important node
