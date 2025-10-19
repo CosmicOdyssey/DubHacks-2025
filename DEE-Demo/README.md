@@ -1,58 +1,57 @@
-# DEE Demo (Forge Jira Project Page)# DEE Demo
+# CodeGraph UW (Forge App)
 
+CodeGraph UW is an Atlassian Forge project page that turns uploaded source files into an interactive knowledge graph. Gemini Flash analyzes each file, the backend stores the resulting structure, and a React + Cytoscape UI renders the relationships directly inside Jira.
 
+## Tech Stack
 
-This app is an Atlassian Forge app for Jira Cloud. It uses a Custom UI built with Vite + React and a backend resolver.Steps to build and deploy the app (exact):
+- **Runtime:** Atlassian Forge (Node.js 20.x)
+- **Frontend:** Vite + React (`ui/`)
+- **Graph Rendering:** Cytoscape.js (`ui/src/components/GraphView.jsx`)
+- **Backend:** Forge resolver (`backend/resolvers.js`)
+- **AI Analysis:** Google Gemini Flash via `generativelanguage.googleapis.com`
 
+## Directory Overview
 
+- `backend/resolvers.js` – Main Forge resolver (handles `/ping`, `/graph`, `/analyze`, `/clear`)
+- `ui/` – React source; run Vite locally, build with `npm run build`
+- `static/ui/` – Generated UI bundle served by Forge (do not edit by hand)
+- `local-test/` – Standalone HTML/JS prototype used for quick UI iterations
+- `QUICKSTART.md`, `SETUP_INSTRUCTIONS.md`, `DEPLOY_NOW.md`, `CODEGRAPH_SETUP.md` – Operational docs
 
-## Quick start1. Install dependencies:
+## Prerequisites
 
+- Node.js 18+ (Forge runtime uses Node.js 20.x)
+- Atlassian Forge CLI (`npm install -g @forge/cli`)
+- Jira Cloud site where you have admin access
+- Gemini API key from [Google AI Studio](https://ai.google.dev/)
 
-
-- Install dependencies```bash
-
-- Build static UI to `static/ui`npm install
-
-- Lint and deploy via Forge```
-
-
-
-## Scripts2. Build UI (creates `static/ui`):
-
-
-
-- `npm run dev` – run Vite dev server (local only)```bash
-
-- `npm run build` – build UI into `static/ui`npm run build
-
-- `npm run preview` – preview the built UI locally```
-
-
-
-## Atlassian Forge3. Ensure `manifest.yml` has `runtime.name: nodejs20` and the correct `app.id` (replace placeholder when ready).
-
-
-
-- Manifest: `manifest.yml`4. Lint, deploy and install to your Jira site:
-
-- Backend function: `src/backend/resolvers.js` exports `handler`
-
-- Jira module: `jira:projectPage` using resource `ui` and resolver `main-resolver````bash
-
-forge lint && forge deploy && forge install --upgrade --site https://YOUR-SITE.atlassian.net --product jira
-
-```
-
-5. For local development with tunnelling:
+## Quick Start
 
 ```bash
-forge tunnel
+cd DEE-Demo
+npm install
+npm run build                           # creates static/ui
+forge variables set GEMINI_API_KEY your_api_key_here
+forge deploy
+forge install --upgrade --site https://YOUR-SITE.atlassian.net --product jira
 ```
 
-Notes:
+After installation, open any Jira project and select **CodeGraph UW** in the left sidebar. Use the **Upload Code** tab to analyze files and the **Knowledge Graph** tab to explore the results.
 
-- The frontend uses `@forge/bridge` to invoke the resolver function named `main-resolver`.
-- The resolver is implemented at `src/backend/resolvers.js` and responds with a simple JSON at ping.
-- Do NOT commit any secret values. Keep `app.id` as the placeholder until you have your app registered.
+## Useful Scripts & Commands
 
+- `npm run dev` – Start the Vite dev server for local UI work (no Forge backend)
+- `npm run build` – Compile the React UI into `static/ui/`
+- `npm run preview` – Preview the production build locally
+- `forge tunnel` – Live-reload backend changes without redeploying
+- `forge lint` – Validate the manifest and permissions before deploying
+- `forge deploy` – Push backend/UI bundle to your Forge environment
+- `forge install --site https://YOUR-SITE.atlassian.net --product jira` – Install or upgrade the app
+- `forge logs` – Tail backend logs for debugging
+
+## Next Steps
+
+- Read `QUICKSTART.md` for a five-minute setup walkthrough
+- Use `CODEGRAPH_SETUP.md` to understand architecture and storage
+- Customize Gemini prompts or graph logic inside `backend/resolvers.js`
+- Explore the Cytoscape component in `ui/src/components/GraphView.jsx` to tweak layout, colors, or interactions

@@ -1,7 +1,25 @@
 .env
 .env.*
 !.env.example
+
+# Node dependencies
 node_modules/
+**/node_modules/
+
+# Build artifacts
 dist/
+build/
+coverage/
+.vite/
+local-test/dist/
 static/ui/assets/
-./DEE-Demo/node_modules/
+
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS metadata
+.DS_Store

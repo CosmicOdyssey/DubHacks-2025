@@ -20,7 +20,7 @@ npm run build
 
 ```bash
 # Set your Gemini API key
-forge variables:set GEMINI_API_KEY your_api_key_here
+forge variables set GEMINI_API_KEY your_api_key_here
 
 # Deploy
 forge deploy
@@ -34,7 +34,7 @@ Replace `YOUR-SITE` with your Atlassian workspace name.
 ## Step 4: Use It!
 
 1. Open any Jira project
-2. Click **"DEE Demo"** in the left sidebar
+2. Click **"CodeGraph UW"** in the left sidebar
 3. Go to **"Upload Code"** tab
 4. Upload a code file or paste code
 5. Click **"Analyze Code"**
@@ -153,7 +153,7 @@ forge logs
 
 **Q: "GEMINI_API_KEY not set"**
 ```bash
-forge variables:set GEMINI_API_KEY your_key
+forge variables set GEMINI_API_KEY your_key
 forge deploy
 ```
 
