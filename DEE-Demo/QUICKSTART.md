@@ -19,11 +19,8 @@ npm run build
 ## Step 3: Configure & Deploy (2 min)
 
 ```bash
-# Set your Gemini API key (creates development environment if needed)
-forge variables set GEMINI_API_KEY AIzaSyDqUF1H5zH-NhBxYiZjrqQlN3Nnyo9mkZ0
-
-# Verify it was set
-forge variables list
+# Set your Gemini API key
+forge variables:set GEMINI_API_KEY your_api_key_here
 
 # Deploy
 forge deploy

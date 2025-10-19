@@ -12,8 +12,7 @@ Open your terminal and run these commands **one at a time**:
 # 1. Navigate to the DEE-Demo directory
 cd /Users/ansonchen/Documents/GitHub/DubHacks-2025/DEE-Demo
 
-# 2. Install dependencies (clean install to avoid npm bugs)
-rm -rf node_modules package-lock.json
+# 2. Install dependencies
 npm install
 
 # 3. Set your Gemini API key as an environment variable
@@ -34,7 +33,7 @@ forge lint
 forge deploy
 
 # 7. Install to your Jira site
-forge install --upgrade --site https://YOUR-SITE.atlassian.net --product jira
+forge install --upgrade --site https://michaelzhou2025.atlassian.net --product jira
 ```
 
 Replace `YOUR-SITE` with your actual Atlassian site name.
