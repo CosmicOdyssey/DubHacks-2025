@@ -36,7 +36,7 @@ npm install
 
 ### 3. Configure API Keys
 
-Edit `local-test/config.js` (do not commit real keys) so it looks like:
+Edit `static/ui/config.js` (do not commit real keys) so it looks like:
 
 ```js
 export const CONFIG = {
@@ -45,23 +45,15 @@ export const CONFIG = {
 };
 ```
 
-These values are copied into `static/ui/config.js` during the build and are used by the Forge iframe to authenticate GitHub and Gemini requests.
+These values are read directly by the Forge iframe to authenticate GitHub and Gemini requests.
 
-### 4. Build the UI
-
-```bash
-node scripts/build-index-v2.mjs
-```
-
-This creates the `static/ui/` directory by copying the prototype assets (HTML, JS, CSS, config, D3) Forge will serve.
-
-### 5. Deploy to Forge
+### 4. Deploy to Forge
 
 ```bash
 forge lint && forge deploy
 ```
 
-### 6. Install to Your Jira Site
+### 5. Install to Your Jira Site
 
 ```bash
 forge install --upgrade --site https://michaelzhou2025.atlassian.net --product jira
@@ -69,7 +61,7 @@ forge install --upgrade --site https://michaelzhou2025.atlassian.net --product j
 
 Replace `YOUR-SITE` with your Atlassian site name.
 
-### 7. Access the App
+### 6. Access the App
 
 1. Go to any Jira project
 2. In the left sidebar, click **"CodeGraph Demo (Dev)"**
@@ -132,23 +124,12 @@ This allows you to:
 - Test API changes immediately
 - Debug with console logs visible in the tunnel output
 
-For UI changes, you still need to:
-```bash
-node scripts/build-index-v2.mjs
-```
 
-### Testing the UI Locally (Without Forge)
-
-```bash
-npm run dev
-```
-
-Access at http://localhost:5173. Note: Backend resolvers won't work in this mode.
+For UI changes, update the files under `static/ui/`, then redeploy.
 
 ### Deploy After Changes
 
 ```bash
-node scripts/build-index-v2.mjs
 forge deploy
 ```
 
@@ -307,8 +288,7 @@ Edit the prompt in `backend/resolvers.js:13-37`.
 
 ### "CONFIG not found"
 
-- Confirm `local-test/config.js` exports `CONFIG` with both keys.
-- Re-run `node scripts/build-index-v2.mjs` to copy it into `static/ui/`.
+- Confirm `static/ui/config.js` exports `CONFIG` with both keys.
 - Deploy again with `forge deploy`.
 
 ### Graph doesn't load
@@ -326,7 +306,7 @@ Gemini Flash has a free tier limit (15 requests/minute). Wait a minute or upgrad
 ```bash
 rm -rf node_modules package-lock.json
 npm install
-node scripts/build-index-v2.mjs
+forge deploy
 ```
 
 ### Forge deployment fails
