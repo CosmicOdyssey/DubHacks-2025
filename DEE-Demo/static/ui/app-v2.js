@@ -1,10 +1,15 @@
 // CodeGraph Demo (Dev) - Full GitHub Repository Analyzer
-// Gemini API Configuration
-const GEMINI_API_KEY = 'gemini api key';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+const configModule = await import('./config.js').catch((err) => {
+  console.error('Failed to load config.js', err);
+  return {};
+});
+const CONFIG = configModule.CONFIG ?? (typeof window !== 'undefined' ? window.CONFIG : undefined);
+if (!CONFIG) {
+  throw new Error('CONFIG not found. Ensure config.js is deployed alongside app-v2.js');
+}
 
-// GitHub configuration
-const GITHUB_TOKEN = 'github token';
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+const GITHUB_TOKEN = CONFIG.GITHUB_TOKEN;
 
 // Graph data
 let graphData = { nodes: [], edges: [] };

@@ -1,5 +1,12 @@
 // CodeGraph Demo (Dev) - Full GitHub Repository Analyzer
-import { CONFIG } from './config.js';
+const configModule = await import('./config.js').catch((err) => {
+  console.error('Failed to load config.js', err);
+  return {};
+});
+const CONFIG = configModule.CONFIG ?? (typeof window !== 'undefined' ? window.CONFIG : undefined);
+if (!CONFIG) {
+  throw new Error('CONFIG not found. Ensure config.js is deployed alongside app-v2.js');
+}
 
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
 const GITHUB_TOKEN = CONFIG.GITHUB_TOKEN;
