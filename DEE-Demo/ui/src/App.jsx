@@ -111,6 +111,9 @@ export default function App() {
             Clear Graph
           </button>
         </div>
+      </div>
+
+      <header>
         <div className="spacer">
           <Filter label="Type" value={filters.type} onChange={(v) => setFilters((f) => ({ ...f, type: v }))} options={[[
             'all', 'All'], ['person', 'People'], ['artifact', 'Artifacts'], ['event', 'Events']

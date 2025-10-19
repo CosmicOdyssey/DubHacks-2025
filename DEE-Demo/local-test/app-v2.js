@@ -1,10 +1,10 @@
 // CodeGraph Demo (Dev) - Full GitHub Repository Analyzer
 // Gemini API Configuration
-const GEMINI_API_KEY = 'GEMINI API KEY';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_API_KEY = 'gemini api key';
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
 
 // GitHub configuration
-const GITHUB_TOKEN = 'GITHUB API KEY';
+const GITHUB_TOKEN = 'git hub token';
 
 // Graph data
 let graphData = { nodes: [], edges: [] };
@@ -256,6 +256,223 @@ function addToGraph(filename, analysis) {
 }
 
 // Initialize D3 graph
+// Initialize animated starfield background
+function initDotGrid() {
+  const container = document.getElementById('cy');
+  if (!container) return;
+
+  // Configuration
+  const config = {
+    dotSize: 3,
+    gap: 30,
+    baseColor: { r: 82, g: 39, b: 255 }, // #5227FF
+    activeColor: { r: 132, g: 0, b: 255 }, // #8400FF
+    proximity: 120,
+    speedTrigger: 100,
+    shockRadius: 200,
+    shockStrength: 2,
+    returnDuration: 800, // ms
+    returnEase: 0.15,
+    baseOpacity: 0.3,
+    activeOpacity: 0.7
+  };
+
+  // Create canvas
+  const canvas = document.createElement('canvas');
+  canvas.style.position = 'absolute';
+  canvas.style.top = '0';
+  canvas.style.left = '0';
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  canvas.style.pointerEvents = 'none';
+  canvas.style.zIndex = '0';
+  container.insertBefore(canvas, container.firstChild);
+
+  const ctx = canvas.getContext('2d');
+  const dots = [];
+  let pointer = { x: -1000, y: -1000, lastX: -1000, lastY: -1000, vx: 0, vy: 0, speed: 0, lastTime: 0 };
+  let animationId;
+
+  // Build grid
+  function buildGrid() {
+    const dpr = window.devicePixelRatio || 1;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.scale(dpr, dpr);
+
+    const cell = config.dotSize + config.gap;
+    const cols = Math.floor((width + config.gap) / cell);
+    const rows = Math.floor((height + config.gap) / cell);
+
+    const gridW = cell * cols - config.gap;
+    const gridH = cell * rows - config.gap;
+    const startX = (width - gridW) / 2 + config.dotSize / 2;
+    const startY = (height - gridH) / 2 + config.dotSize / 2;
+
+    dots.length = 0;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        dots.push({
+          cx: startX + x * cell,
+          cy: startY + y * cell,
+          x: 0,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          targetX: 0,
+          targetY: 0,
+          returning: false
+        });
+      }
+    }
+  }
+
+  buildGrid();
+
+  // Animation loop
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const proxSq = config.proximity * config.proximity;
+    const { x: px, y: py } = pointer;
+
+    for (const dot of dots) {
+      // Update physics
+      if (dot.returning) {
+        dot.vx += (dot.targetX - dot.x) * config.returnEase;
+        dot.vy += (dot.targetY - dot.y) * config.returnEase;
+        dot.vx *= 0.85;
+        dot.vy *= 0.85;
+        dot.x += dot.vx;
+        dot.y += dot.vy;
+
+        if (Math.abs(dot.x - dot.targetX) < 0.1 && Math.abs(dot.y - dot.targetY) < 0.1) {
+          dot.x = dot.targetX;
+          dot.y = dot.targetY;
+          dot.vx = 0;
+          dot.vy = 0;
+          dot.returning = false;
+        }
+      } else {
+        dot.x += dot.vx;
+        dot.y += dot.vy;
+        dot.vx *= 0.95;
+        dot.vy *= 0.95;
+      }
+
+      // Calculate color based on proximity
+      const ox = dot.cx + dot.x;
+      const oy = dot.cy + dot.y;
+      const dx = dot.cx - px;
+      const dy = dot.cy - py;
+      const dsq = dx * dx + dy * dy;
+
+      let color = `rgba(${config.baseColor.r}, ${config.baseColor.g}, ${config.baseColor.b}, ${config.baseOpacity})`;
+      if (dsq <= proxSq) {
+        const dist = Math.sqrt(dsq);
+        const t = 1 - dist / config.proximity;
+        const r = Math.round(config.baseColor.r + (config.activeColor.r - config.baseColor.r) * t);
+        const g = Math.round(config.baseColor.g + (config.activeColor.g - config.baseColor.g) * t);
+        const b = Math.round(config.baseColor.b + (config.activeColor.b - config.baseColor.b) * t);
+        const opacity = config.baseOpacity + (config.activeOpacity - config.baseOpacity) * t;
+        color = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+      }
+
+      // Draw dot
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(ox, oy, config.dotSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    animationId = requestAnimationFrame(animate);
+  }
+
+  animate();
+
+  // Mouse movement handler
+  let lastMoveTime = 0;
+  function handleMouseMove(e) {
+    const now = performance.now();
+    if (now - lastMoveTime < 16) return; // Throttle to ~60fps
+    lastMoveTime = now;
+
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = e.clientX - rect.left;
+    pointer.y = e.clientY - rect.top;
+
+    const dt = pointer.lastTime ? now - pointer.lastTime : 16;
+    const dx = pointer.x - pointer.lastX;
+    const dy = pointer.y - pointer.lastY;
+    pointer.vx = (dx / dt) * 1000;
+    pointer.vy = (dy / dt) * 1000;
+    pointer.speed = Math.sqrt(pointer.vx * pointer.vx + pointer.vy * pointer.vy);
+
+    pointer.lastX = pointer.x;
+    pointer.lastY = pointer.y;
+    pointer.lastTime = now;
+
+    // Push dots on fast movement
+    if (pointer.speed > config.speedTrigger) {
+      for (const dot of dots) {
+        if (dot.returning) continue;
+        const dist = Math.sqrt((dot.cx - pointer.x) ** 2 + (dot.cy - pointer.y) ** 2);
+        if (dist < config.proximity) {
+          const pushX = (dot.cx - pointer.x) + pointer.vx * 0.002;
+          const pushY = (dot.cy - pointer.y) + pointer.vy * 0.002;
+          dot.vx = pushX * 0.015;
+          dot.vy = pushY * 0.015;
+          dot.targetX = 0;
+          dot.targetY = 0;
+          dot.returning = true;
+        }
+      }
+    }
+  }
+
+  // Click handler - shockwave effect
+  function handleClick(e) {
+    const rect = canvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+
+    for (const dot of dots) {
+      const dist = Math.sqrt((dot.cx - cx) ** 2 + (dot.cy - cy) ** 2);
+      if (dist < config.shockRadius) {
+        const falloff = Math.max(0, 1 - dist / config.shockRadius);
+        const pushX = (dot.cx - cx) * config.shockStrength * falloff;
+        const pushY = (dot.cy - cy) * config.shockStrength * falloff;
+        dot.vx = pushX * 0.03;
+        dot.vy = pushY * 0.03;
+        dot.targetX = 0;
+        dot.targetY = 0;
+        dot.returning = true;
+      }
+    }
+  }
+
+  // Event listeners
+  window.addEventListener('mousemove', handleMouseMove);
+  window.addEventListener('click', handleClick);
+  window.addEventListener('resize', buildGrid);
+
+  // Cleanup
+  return () => {
+    cancelAnimationFrame(animationId);
+    window.removeEventListener('mousemove', handleMouseMove);
+    window.removeEventListener('click', handleClick);
+    window.removeEventListener('resize', buildGrid);
+    if (canvas.parentNode) {
+      canvas.parentNode.removeChild(canvas);
+    }
+  };
+}
+
 function initGraph() {
   const container = document.getElementById('cy');
   if (!container) {
@@ -272,21 +489,20 @@ function initGraph() {
 
   // Clear previous graph
   if (svg) {
-    d3.select(container).selectAll('*').remove();
+    d3.select(container).selectAll('svg').remove();
   }
 
-  // Create SVG
+  // Initialize starfield background
+  initDotGrid();
+
+  // Create SVG with transparent background
   svg = d3.select(container)
     .append('svg')
     .attr('width', '100%')
     .attr('height', '100%')
-    .style('background-color', '#0a0a14');
-
-  // Add dark background rect to SVG
-  svg.insert('rect', ':first-child')
-    .attr('width', '100%')
-    .attr('height', '100%')
-    .attr('fill', '#0a0a14');
+    .style('background-color', 'transparent')
+    .style('position', 'relative')
+    .style('z-index', '1');
 
   // Create main group with zoom
   g = svg.append('g');
@@ -309,14 +525,14 @@ function initGraph() {
   defs.append('marker')
     .attr('id', 'arrowhead')
     .attr('viewBox', '-0 -5 10 10')
-    .attr('refX', 20)
+    .attr('refX', 22)
     .attr('refY', 0)
     .attr('orient', 'auto')
     .attr('markerWidth', 8)
     .attr('markerHeight', 8)
     .append('path')
     .attr('d', 'M 0,-5 L 10,0 L 0,5')
-    .attr('fill', 'rgba(255, 255, 255, 0.3)');
+    .attr('fill', 'rgba(255, 255, 255, 0.4)');
 
   // Add glow filter
   const filter = defs.append('filter')
@@ -335,6 +551,54 @@ function initGraph() {
   feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
   console.log('D3 graph initialized');
+}
+
+// Calculate PageRank for nodes
+function calculatePageRank(nodes, edges, iterations = 20, dampingFactor = 0.85) {
+  const nodeMap = new Map();
+  const pageRank = new Map();
+  const outLinks = new Map();
+  
+  // Initialize
+  nodes.forEach(n => {
+    nodeMap.set(n.id, n);
+    pageRank.set(n.id, 1.0 / nodes.length);
+    outLinks.set(n.id, []);
+  });
+  
+  // Build outgoing links (source -> target)
+  edges.forEach(e => {
+    const sourceId = e.source.id || e.source;
+    const targetId = e.target.id || e.target;
+    if (outLinks.has(sourceId)) {
+      outLinks.get(sourceId).push(targetId);
+    }
+  });
+  
+  // Iterate PageRank algorithm
+  for (let iter = 0; iter < iterations; iter++) {
+    const newRank = new Map();
+    
+    // Initialize with random walk probability
+    nodes.forEach(n => newRank.set(n.id, (1 - dampingFactor) / nodes.length));
+    
+    // Add contributions from linking nodes
+    nodes.forEach(n => {
+      const links = outLinks.get(n.id) || [];
+      if (links.length > 0) {
+        const contribution = pageRank.get(n.id) / links.length;
+        links.forEach(targetId => {
+          newRank.set(targetId, newRank.get(targetId) + dampingFactor * contribution);
+        });
+      }
+    });
+    
+    // Update pageRank
+    pageRank.clear();
+    newRank.forEach((value, key) => pageRank.set(key, value));
+  }
+  
+  return pageRank;
 }
 
 // Render graph with D3
@@ -379,22 +643,35 @@ function renderGraph() {
   const nodes = filteredNodes.map(n => ({ ...n }));
   const edges = filteredEdges.map(e => ({ ...e }));
 
+  // Calculate PageRank for each node
+  const pageRankMap = calculatePageRank(nodes, edges);
+
+  // Add PageRank to nodes
+  nodes.forEach(n => {
+    n.pageRank = pageRankMap.get(n.id) || 0;
+  });
+
   // Create simulation
   simulation = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(edges)
       .id(d => d.id)
-      .distance(150))
-    .force('charge', d3.forceManyBody().strength(-400))
+      .distance(300))
+    .force('charge', d3.forceManyBody().strength(-200))
     .force('center', d3.forceCenter(0, 0))
-    .force('collision', d3.forceCollide().radius(40));
+    .force('collision', d3.forceCollide().radius(d => {
+      // Base size + PageRank-based size
+      const baseSize = d.type === 'file' ? 24 : d.type === 'class' ? 20 : 18;
+      const pageRankBonus = (d.pageRank || 0) * 800; // Scale PageRank (typically 0.0-0.1)
+      return baseSize + pageRankBonus + 5; // +5 for spacing
+    }));
 
   // Create edges
   const link = g.append('g')
     .selectAll('line')
     .data(edges)
     .join('line')
-    .attr('stroke', 'rgba(132, 0, 255, 0.3)')
-    .attr('stroke-width', 2)
+    .attr('stroke', 'rgba(132, 0, 255, 0.4)')
+    .attr('stroke-width', 3)
     .attr('marker-end', 'url(#arrowhead)')
     .style('opacity', 0);
 
@@ -416,9 +693,11 @@ function renderGraph() {
   // Add circles to nodes
   node.append('circle')
     .attr('r', d => {
-      if (d.type === 'file') return 16;
-      if (d.type === 'class') return 14;
-      return 12;
+      // Base size by type
+      const baseSize = d.type === 'file' ? 24 : d.type === 'class' ? 20 : 18;
+      // Add PageRank-based scaling
+      const pageRankBonus = (d.pageRank || 0) * 800; // Scale PageRank (typically 0.0-0.1)
+      return baseSize + pageRankBonus;
     })
     .attr('fill', d => nodeColors[d.type] || '#8400FF')
     .attr('stroke', 'rgba(255, 255, 255, 0.3)')
@@ -428,9 +707,9 @@ function renderGraph() {
   // Add inner glow circle
   node.append('circle')
     .attr('r', d => {
-      if (d.type === 'file') return 10;
-      if (d.type === 'class') return 8;
-      return 6;
+      const baseSize = d.type === 'file' ? 14 : d.type === 'class' ? 12 : 10;
+      const pageRankBonus = (d.pageRank || 0) * 560; // Proportionally smaller
+      return baseSize + pageRankBonus;
     })
     .attr('fill', 'rgba(255, 255, 255, 0.2)')
     .style('pointer-events', 'none');
@@ -439,10 +718,10 @@ function renderGraph() {
   node.append('text')
     .text(d => d.label || d.name || d.id)
     .attr('x', 0)
-    .attr('y', 30)
+    .attr('y', 38)
     .attr('text-anchor', 'middle')
     .attr('fill', '#fff')
-    .attr('font-size', '12px')
+    .attr('font-size', '13px')
     .attr('font-weight', '500')
     .style('pointer-events', 'none')
     .style('text-shadow', '0 2px 8px rgba(0, 0, 0, 0.8)');
@@ -462,20 +741,20 @@ function renderGraph() {
       .transition()
       .duration(200)
       .attr('r', d => {
-        if (d.type === 'file') return 20;
-        if (d.type === 'class') return 18;
-        return 16;
+        const baseSize = d.type === 'file' ? 30 : d.type === 'class' ? 26 : 24;
+        const pageRankBonus = (d.pageRank || 0) * 600;
+        return baseSize + pageRankBonus;
       })
-      .attr('stroke-width', 3);
+      .attr('stroke-width', 4);
 
     // Highlight connected edges
     link.attr('stroke', l => 
       (l.source.id === d.id || l.target.id === d.id) 
-        ? 'rgba(132, 0, 255, 0.8)' 
-        : 'rgba(132, 0, 255, 0.3)'
+        ? 'rgba(132, 0, 255, 1)' 
+        : 'rgba(132, 0, 255, 0.4)'
     )
     .attr('stroke-width', l =>
-      (l.source.id === d.id || l.target.id === d.id) ? 3 : 2
+      (l.source.id === d.id || l.target.id === d.id) ? 5 : 3
     );
   })
   .on('mouseleave', function(event, d) {
@@ -486,14 +765,14 @@ function renderGraph() {
       .transition()
       .duration(200)
       .attr('r', d => {
-        if (d.type === 'file') return 16;
-        if (d.type === 'class') return 14;
-        return 12;
+        const baseSize = d.type === 'file' ? 24 : d.type === 'class' ? 20 : 18;
+        const pageRankBonus = (d.pageRank || 0) * 800;
+        return baseSize + pageRankBonus;
       })
       .attr('stroke-width', 2);
 
-    link.attr('stroke', 'rgba(132, 0, 255, 0.3)')
-      .attr('stroke-width', 2);
+    link.attr('stroke', 'rgba(132, 0, 255, 0.4)')
+      .attr('stroke-width', 3);
   })
   .on('click', function(event, d) {
     event.stopPropagation();
