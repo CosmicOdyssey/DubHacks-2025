@@ -31,7 +31,7 @@ function parseGitHubUrl(url) {
 }
 
 // GitHub configuration
-const GITHUB_TOKEN = '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';
+const GITHUB_TOKEN = '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';
 
 // Fetch repository file tree from GitHub
 async function fetchRepoTree(owner, repo, branch = 'main') {
