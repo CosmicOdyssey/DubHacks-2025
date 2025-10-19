@@ -1,7 +1,7 @@
 // CodeGraph UW - Full GitHub Repository Analyzer
 // API Keys - Will be fetched from Forge or use defaults for local testing
-let GEMINI_API_KEY = 'XXX'; // Default for local testing
-let GITHUB_TOKEN = 'ghp_XXX'; // Default for local testing
+let GEMINI_API_KEY = 'AIzaSyDqUF1H5zH-NhBxYiZjrqQlN3Nnyo9mkZ0'; // Default for local testing
+let GITHUB_TOKEN = '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'; // Default for local testing
 
 // Graph data
 let graphData = { nodes: [], edges: [] };
@@ -21,20 +21,66 @@ const edgeCountEl = document.getElementById('edgeCount');
 const fileListEl = document.getElementById('fileList');
 const nodeDetailsDiv = document.getElementById('nodeDetails');
 
+async function waitForForgeBridge(timeoutMs = 5000) {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const pollIntervalMs = 50;
+  if (typeof window.__bridge?.callBridge === 'function') {
+    console.log('✓ Forge bridge detected');
+    return window.__bridge;
+  }
+
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (typeof window.__bridge?.callBridge === 'function') {
+      console.log('✓ Forge bridge detected');
+      return window.__bridge;
+    }
+    await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+  }
+
+  return null;
+}
+
 // Fetch API keys from Forge backend if available
 async function fetchAPIKeys() {
   try {
-    if (typeof AP !== 'undefined' && AP.context) {
-      // Running in Forge - fetch keys from backend
-      const response = await AP.request('/keys');
-      if (response && response.body) {
-        const data = JSON.parse(response.body);
-        if (data.geminiKey) GEMINI_API_KEY = data.geminiKey;
-        if (data.githubToken) GITHUB_TOKEN = data.githubToken;
-        console.log('✓ API keys loaded from Forge environment variables');
-      }
-    } else {
-      console.log('⚠ Running locally - using hardcoded API keys');
+    const forgeApi = await waitForForgeBridge();
+    if (!forgeApi) {
+      console.log('⚠ Forge bridge unavailable - using hardcoded API keys');
+      return;
+    }
+
+    const rawResponse = await forgeApi.callBridge('invoke', {
+      functionKey: 'main-resolver',
+      payload: { path: '/keys' }
+    });
+
+    const bodyCandidate = typeof rawResponse === 'string'
+      ? rawResponse
+      : rawResponse && typeof rawResponse.body !== 'undefined'
+        ? rawResponse.body
+        : rawResponse;
+
+    const parsedPayload = typeof bodyCandidate === 'string'
+      ? JSON.parse(bodyCandidate)
+      : bodyCandidate;
+
+    const data = parsedPayload && parsedPayload.body ? parsedPayload.body : parsedPayload;
+
+    if (data) {
+      const geminiKey = typeof data.geminiKey === 'string' ? data.geminiKey.trim() : '';
+      const githubToken = typeof data.githubToken === 'string' ? data.githubToken.trim() : '';
+
+      GEMINI_API_KEY = geminiKey;
+      GITHUB_TOKEN = githubToken;
+
+      console.log('✓ API keys loaded from Forge environment variables', {
+        geminiConfigured: Boolean(geminiKey),
+        githubConfigured: Boolean(githubToken),
+      });
     }
   } catch (e) {
     console.warn('Could not fetch API keys from Forge, using defaults:', e);
@@ -588,8 +634,14 @@ async function analyzeRepository() {
     // Fetch API keys from Forge if available
     await fetchAPIKeys();
 
-    if (!GEMINI_API_KEY) {
-      showMessage('Error: Gemini API key not configured. Please set GEMINI_API_KEY via forge variables.', 'error');
+    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'XXX') {
+      showMessage('Error: Gemini API key not configured. Please set GEMINI_API_KEY via Forge variables.', 'error');
+      analyzeBtn.disabled = false;
+      return;
+    }
+
+    if (!GITHUB_TOKEN || GITHUB_TOKEN === 'ghp_XXX') {
+      showMessage('Error: GitHub token not configured. Please set GITHUB_TOKEN via Forge variables.', 'error');
       analyzeBtn.disabled = false;
       return;
     }

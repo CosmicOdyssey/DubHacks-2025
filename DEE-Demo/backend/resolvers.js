@@ -279,7 +279,24 @@ async function connectBlocks(projectId) {
 // ============================================================================
 
 export const handler = async (req) => {
-  const { path = '/ping', payload } = req;
+  const rawPath = typeof req.path === 'string' ? req.path : '';
+  const payload = req.payload;
+  const pathFromPayload = payload && typeof payload.path === 'string' ? payload.path : '';
+  const path = rawPath || pathFromPayload || '/ping';
+
+  const data = (() => {
+    if (!payload || typeof payload !== 'object') {
+      return payload;
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'payload')) {
+      return payload.payload;
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'path')) {
+      const { path: _ignored, ...rest } = payload;
+      return rest;
+    }
+    return payload;
+  })();
   const now = new Date().toISOString();
 
   try {
@@ -307,7 +324,7 @@ export const handler = async (req) => {
 
     // Analyze code with Gemini
     if (path === '/analyze') {
-      const { code, filename, projectId = 'default' } = payload || {};
+      const { code, filename, projectId = 'default' } = data || {};
 
       console.log('Analyze request received:', { filename, codeLength: code?.length, projectId });
 
@@ -340,7 +357,7 @@ export const handler = async (req) => {
 
     // Get existing graph
     if (path === '/graph') {
-      const { projectId = 'default' } = payload || {};
+      const { projectId = 'default' } = data || {};
       const graph = await getCodeGraph(projectId);
 
       return {
@@ -355,7 +372,7 @@ export const handler = async (req) => {
 
     // Connect blocks based on data flow
     if (path === '/connect') {
-      const { projectId = 'default' } = payload || {};
+      const { projectId = 'default' } = data || {};
       console.log('Connecting blocks for projectId:', projectId);
 
       const graph = await connectBlocks(projectId);
