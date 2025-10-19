@@ -1,6 +1,9 @@
 // Gemini API Configuration
-const GEMINI_API_KEY = 'AIzaSyDqUF1H5zH-NhBxYiZjrqQlN3Nnyo9mkZ0';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
+const STORAGE_KEYS = {
+  gemini: 'codegraph:geminiApiKey',
+  github: 'codegraph:githubToken'
+};
 
 // Graph data
 let graphData = { nodes: [], edges: [] };
@@ -15,6 +18,119 @@ const fileTreeDiv = document.getElementById('fileTree');
 const messageArea = document.getElementById('messageArea');
 const nodeDetailsDiv = document.getElementById('nodeDetails');
 const resetBtn = document.getElementById('resetBtn');
+const controlsContainer = document.querySelector('.controls');
+
+// API credential inputs ------------------------------------------------------
+const geminiKeyInput = document.createElement('input');
+geminiKeyInput.type = 'password';
+geminiKeyInput.id = 'geminiApiKey';
+geminiKeyInput.placeholder = 'Paste Gemini API key (required for analysis)';
+geminiKeyInput.autocomplete = 'off';
+
+const githubTokenInput = document.createElement('input');
+githubTokenInput.type = 'password';
+githubTokenInput.id = 'githubToken';
+githubTokenInput.placeholder = 'GitHub personal access token (optional but recommended)';
+githubTokenInput.autocomplete = 'off';
+
+const credentialInfo = document.createElement('p');
+credentialInfo.style.fontSize = '12px';
+credentialInfo.style.color = '#5E6C84';
+credentialInfo.style.margin = '4px 0 0';
+credentialInfo.innerHTML = 'Keys are stored locally in your browser (localStorage). Clear them with the button below.';
+
+const saveKeysBtn = document.createElement('button');
+saveKeysBtn.type = 'button';
+saveKeysBtn.textContent = 'Save API Keys';
+
+const clearKeysBtn = document.createElement('button');
+clearKeysBtn.type = 'button';
+clearKeysBtn.textContent = 'Clear Saved Keys';
+clearKeysBtn.style.marginLeft = '8px';
+
+function buildCredentialGroup(labelText, inputEl) {
+  const group = document.createElement('div');
+  group.className = 'form-group';
+
+  const label = document.createElement('label');
+  label.textContent = labelText;
+  group.appendChild(label);
+
+  group.appendChild(inputEl);
+
+  return group;
+}
+
+const geminiGroup = buildCredentialGroup('Gemini API Key', geminiKeyInput);
+const githubGroup = buildCredentialGroup('GitHub Token', githubTokenInput);
+
+const credentialButtonGroup = document.createElement('div');
+credentialButtonGroup.className = 'form-group';
+credentialButtonGroup.style.display = 'flex';
+credentialButtonGroup.style.alignItems = 'center';
+
+credentialButtonGroup.appendChild(saveKeysBtn);
+credentialButtonGroup.appendChild(clearKeysBtn);
+
+const infoWrapper = document.createElement('div');
+infoWrapper.className = 'form-group';
+infoWrapper.appendChild(credentialInfo);
+
+controlsContainer.insertBefore(infoWrapper, controlsContainer.children[2]);
+controlsContainer.insertBefore(credentialButtonGroup, infoWrapper);
+controlsContainer.insertBefore(githubGroup, credentialButtonGroup);
+controlsContainer.insertBefore(geminiGroup, githubGroup);
+
+function loadStoredCredentials() {
+  const storedGemini = window.localStorage.getItem(STORAGE_KEYS.gemini) || '';
+  const storedGithub = window.localStorage.getItem(STORAGE_KEYS.github) || '';
+  geminiKeyInput.value = storedGemini;
+  githubTokenInput.value = storedGithub;
+}
+
+function persistCredentials() {
+  const geminiKey = geminiKeyInput.value.trim();
+  const githubToken = githubTokenInput.value.trim();
+
+  if (geminiKey) {
+    window.localStorage.setItem(STORAGE_KEYS.gemini, geminiKey);
+  } else {
+    window.localStorage.removeItem(STORAGE_KEYS.gemini);
+  }
+
+  if (githubToken) {
+    window.localStorage.setItem(STORAGE_KEYS.github, githubToken);
+  } else {
+    window.localStorage.removeItem(STORAGE_KEYS.github);
+  }
+}
+
+function clearStoredCredentials() {
+  geminiKeyInput.value = '';
+  githubTokenInput.value = '';
+  window.localStorage.removeItem(STORAGE_KEYS.gemini);
+  window.localStorage.removeItem(STORAGE_KEYS.github);
+}
+
+saveKeysBtn.addEventListener('click', () => {
+  persistCredentials();
+  showMessage('API keys saved locally. They will be used for future requests.', 'success');
+});
+
+clearKeysBtn.addEventListener('click', () => {
+  clearStoredCredentials();
+  showMessage('Saved API keys cleared from this browser.', 'info');
+});
+
+loadStoredCredentials();
+
+function getGeminiApiKey() {
+  return geminiKeyInput.value.trim();
+}
+
+function getGithubToken() {
+  return githubTokenInput.value.trim();
+}
 
 // Event Listeners
 analyzeRepoBtn.addEventListener('click', analyzeRepository);
@@ -29,18 +145,16 @@ function parseGitHubUrl(url) {
     repo: match[2].replace(/\.git$/, '')
   };
 }
-
-// GitHub configuration
-const GITHUB_TOKEN = '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';
-
 // Fetch repository file tree from GitHub
 async function fetchRepoTree(owner, repo, branch = 'main') {
   const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
-  const response = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${GITHUB_TOKEN}`
-    }
-  });
+  const headers = {};
+  const githubToken = getGithubToken();
+  if (githubToken) {
+    headers['Authorization'] = `Bearer ${githubToken}`;
+  }
+
+  const response = await fetch(url, { headers });
 
   if (!response.ok) {
     if (response.status === 403) {
@@ -86,6 +200,12 @@ With token: 5,000 requests/hour
   }
 
   const data = await response.json();
+
+  if (!Array.isArray(data?.tree)) {
+    console.warn('Unexpected GitHub tree response', data);
+    return [];
+  }
+
   // Support ALL major programming languages
   return data.tree.filter(item =>
     item.type === 'blob' &&
@@ -100,11 +220,13 @@ With token: 5,000 requests/hour
 // Fetch file content from GitHub
 async function fetchFileContent(owner, repo, path, branch = 'main') {
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
-  const response = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${GITHUB_TOKEN}`
-    }
-  });
+  const headers = {};
+  const githubToken = getGithubToken();
+  if (githubToken) {
+    headers['Authorization'] = `Bearer ${githubToken}`;
+  }
+
+  const response = await fetch(url, { headers });
 
   if (!response.ok) {
     if (response.status === 403) {
@@ -122,7 +244,13 @@ async function fetchFileContent(owner, repo, path, branch = 'main') {
 
 // Show message
 function showMessage(html, type = 'info') {
-  const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'progress';
+  const classMap = {
+    error: 'message error',
+    success: 'message success',
+    info: 'message info',
+    warning: 'message warning'
+  };
+  const className = classMap[type] || 'message';
   messageArea.innerHTML = `<div class="${className}">${html}</div>`;
 }
 
@@ -201,7 +329,12 @@ Return JSON with:
 
 Keep it MINIMAL. Focus on helping visualize the repository structure, not implementation details.`;
 
-  const response = await fetch(GEMINI_API_URL, {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    throw new Error('Gemini API key not set. Click "Save API Keys" after entering your key.');
+  }
+
+  const response = await fetch(`${GEMINI_API_URL}?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -642,6 +775,16 @@ async function analyzeRepository() {
     return;
   }
 
+  const geminiKey = getGeminiApiKey();
+  if (!geminiKey) {
+    showMessage('Gemini API key required. Enter it above and click "Save API Keys".', 'error');
+    return;
+  }
+
+  if (!getGithubToken()) {
+    showMessage('Proceeding without a GitHub token (requests limited to 60/hour). Enter a token for higher limits.', 'info');
+  }
+
   analyzeRepoBtn.disabled = true;
   resetGraph();
 
@@ -656,7 +799,7 @@ async function analyzeRepository() {
     // Fetch file tree
     const files = await fetchRepoTree(parsed.owner, parsed.repo, branch);
 
-    if (files.length === 0) {
+    if (!Array.isArray(files) || files.length === 0) {
       showMessage('No code files found in repository', 'error');
       return;
     }

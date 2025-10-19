@@ -1,10 +1,50 @@
 // CodeGraph UW - Full GitHub Repository Analyzer
-// Gemini API Configuration
-const GEMINI_API_KEY = 'AIzaSyDqUF1H5zH-NhBxYiZjrqQlN3Nnyo9mkZ0';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
+// Forge backend resolver handles API access; frontend uses the Forge bridge.
 
-// GitHub configuration
-const GITHUB_TOKEN = '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';
+// Forge bridge helpers ------------------------------------------------------
+function detectForgeContext() {
+  return typeof window !== 'undefined' &&
+    typeof window.__bridge !== 'undefined' &&
+    typeof window.__bridge.callBridge === 'function';
+}
+
+let forgeBridgePromise = null;
+
+function ensureForgeBridge(timeoutMs = 8000) {
+  if (forgeBridgePromise) {
+    return forgeBridgePromise;
+  }
+
+  forgeBridgePromise = new Promise((resolve, reject) => {
+    if (detectForgeContext()) {
+      resolve(window.__bridge);
+      return;
+    }
+
+    const start = Date.now();
+    const interval = setInterval(() => {
+      if (detectForgeContext()) {
+        clearInterval(interval);
+        resolve(window.__bridge);
+      } else if (Date.now() - start > timeoutMs) {
+        clearInterval(interval);
+        reject(new Error('Forge bridge unavailable'));
+      }
+    }, 50);
+  });
+
+  return forgeBridgePromise;
+}
+
+async function isForgeReady() {
+  try {
+    await ensureForgeBridge();
+    return true;
+  } catch (error) {
+    console.warn('Forge bridge not detected:', error.message);
+    return false;
+  }
+}
 
 // Graph data
 let graphData = { nodes: [], edges: [] };
@@ -34,97 +74,47 @@ function parseGitHubUrl(url) {
   };
 }
 
-// Fetch repository file tree from GitHub
+// Helper function to invoke Forge resolver
+async function invokeResolver(path, payload) {
+  const bridge = await ensureForgeBridge();
+
+  const raw = await bridge.callBridge('invoke', {
+    functionKey: 'main-resolver',
+    payload: { path, payload }
+  });
+
+  const data = raw?.body ?? raw;
+
+  if (!data) {
+    throw new Error('Resolver returned empty response');
+  }
+
+  if (data.ok) {
+    return data;
+  }
+
+  throw new Error(data.error || 'Resolver request failed');
+}
+
+// Fetch repository file tree from GitHub using Forge resolver
 async function fetchRepoTree(owner, repo, branch = 'main') {
-  const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
-  const response = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
-  });
-
-  if (!response.ok) {
-    throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.tree.filter(item =>
-    item.type === 'blob' &&
-    /\.(js|jsx|ts|tsx|py|java|go|rs|cpp|c|h|hpp|cs|rb|php|swift|kt|scala|clj|ex|exs|erl|hs|ml|r|dart|lua|pl|sh|bash|sql|vue|svelte)$/i.test(item.path) &&
-    !item.path.includes('node_modules') &&
-    !item.path.includes('.min.') &&
-    !item.path.includes('dist/') &&
-    !item.path.includes('build/')
-  );
+  const result = await invokeResolver('/github/tree', { owner, repo, branch });
+  return result.files;
 }
 
-// Fetch file content from GitHub
+// Fetch file content from GitHub using Forge resolver
 async function fetchFileContent(owner, repo, path, branch = 'main') {
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
-  const response = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${path}: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return atob(data.content);
+  const result = await invokeResolver('/github/file', { owner, repo, path, branch });
+  return result.content;
 }
 
-// Analyze code with Gemini AI
-async function analyzeWithGemini(code, filename) {
-  const prompt = `Analyze this code file and extract structured metadata for knowledge graph visualization.
-
-Filename: ${filename}
-
-Code:
-\`\`\`
-${code.substring(0, 8000)}
-\`\`\`
-
-Return JSON with this structure:
-{
-  "title": "Short descriptive name (2-4 words)",
-  "purpose": "One sentence describing what this file does",
-  "blockType": "frontend|backend|database|auth|utils|config|test|other",
-  "complexity": "low|medium|high",
-  "dependencies": {
-    "external": ["library names only, e.g., 'react', 'express'"],
-    "internal": ["relative file paths imported, e.g., './utils/helper.js'"],
-    "apis": ["external APIs called, e.g., 'GitHub API', 'Stripe API'"]
-  },
-  "relatedConcepts": ["key domain concepts, 2-5 max"]
-}
-
-Keep it MINIMAL. Focus on helping visualize the repository structure.`;
-
-  const response = await fetch(GEMINI_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 2048,
-        responseMimeType: "application/json"
-      }
-    })
-  });
-
-  if (!response.ok) {
-    console.error('Gemini API error:', response.status);
-    return null;
-  }
-
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!text) return null;
-
+// Analyze code with Gemini AI using Forge resolver
+async function analyzeWithGemini(code, filename, projectId = 'default') {
   try {
-    return JSON.parse(text.replace(/```json|```/g, ''));
+    const result = await invokeResolver('/analyze', { code, filename, projectId });
+    return result.analysis;
   } catch (e) {
-    console.error('Parse error:', e);
+    console.error('Analysis error:', e);
     return null;
   }
 }
@@ -377,12 +367,14 @@ async function analyzeRepository() {
   }
 
   analyzeBtn.disabled = true;
-  graphData = { nodes: [], edges: [] };
-  fileContents.clear();
+  const projectId = `${parsed.owner}/${parsed.repo}`;
 
   try {
-    showMessage('Fetching repository structure...', 'info');
+    // Clear existing graph first
+    showMessage('Clearing previous analysis...', 'info');
+    await invokeResolver('/clear', { projectId });
 
+    showMessage('Fetching repository structure...', 'info');
     const files = await fetchRepoTree(parsed.owner, parsed.repo, branch);
 
     if (files.length === 0) {
@@ -409,21 +401,22 @@ async function analyzeRepository() {
         fileContents.set(file.path, content);
 
         console.log(`Analyzing ${file.path}...`);
-        const analysis = await analyzeWithGemini(content, file.path);
-
-        if (analysis) {
-          addToGraph(file.path, analysis);
-          console.log(`Added to graph. Total nodes: ${graphData.nodes.length}`);
-        }
+        // The backend resolver handles both Gemini analysis AND graph building
+        await analyzeWithGemini(content, file.path, projectId);
+        analyzed++;
+        console.log(`Analyzed ${analyzed} files so far`);
       } catch (e) {
         console.error(`Failed to analyze ${file.path}:`, e);
       }
 
-      analyzed++;
-
       // Rate limiting: 1 second between Gemini requests
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
+
+    // Load the complete graph from storage
+    showMessage('Loading final graph...', 'info');
+    const result = await invokeResolver('/graph', { projectId });
+    graphData = result.graph;
 
     renderGraph();
     showMessage(`Successfully analyzed ${analyzed} files! Found ${graphData.nodes.length} nodes and ${graphData.edges.length} connections.`, 'success');
@@ -437,23 +430,86 @@ async function analyzeRepository() {
 }
 
 // Clear graph
-function clearGraph() {
-  graphData = { nodes: [], edges: [] };
-  fileContents.clear();
-  renderGraph();
-  fileListEl.innerHTML = '';
-  showMessage('Graph cleared', 'success');
+async function clearGraph() {
+  if (!isForgeContext) {
+    graphData = { nodes: [], edges: [] };
+    fileContents.clear();
+    renderGraph();
+    fileListEl.innerHTML = '';
+    showMessage('Graph cleared', 'success');
+    return;
+  }
+
+  try {
+    const repoUrl = repoUrlInput.value.trim();
+    if (!repoUrl) {
+      // Clear local graph if no repo URL
+      graphData = { nodes: [], edges: [] };
+      fileContents.clear();
+      renderGraph();
+      fileListEl.innerHTML = '';
+      showMessage('Graph cleared', 'success');
+      return;
+    }
+
+    const parsed = parseGitHubUrl(repoUrl);
+    if (parsed) {
+      const projectId = `${parsed.owner}/${parsed.repo}`;
+      await invokeResolver('/clear', { projectId });
+      showMessage('Graph cleared from storage', 'success');
+    }
+
+    graphData = { nodes: [], edges: [] };
+    fileContents.clear();
+    renderGraph();
+    fileListEl.innerHTML = '';
+  } catch (error) {
+    console.error('Clear error:', error);
+    showMessage(`Error clearing graph: ${error.message}`, 'error');
+  }
+}
+
+// Load saved graph
+async function loadGraph() {
+  if (!isForgeContext) {
+    showMessage('Load functionality requires Forge deployment', 'info');
+    return;
+  }
+
+  try {
+    const repoUrl = repoUrlInput.value.trim();
+    if (!repoUrl) {
+      showMessage('Please enter a GitHub repository URL', 'error');
+      return;
+    }
+
+    const parsed = parseGitHubUrl(repoUrl);
+    if (!parsed) {
+      showMessage('Invalid GitHub URL', 'error');
+      return;
+    }
+
+    const projectId = `${parsed.owner}/${parsed.repo}`;
+    showMessage('Loading graph from storage...', 'info');
+
+    const result = await invokeResolver('/graph', { projectId });
+    graphData = result.graph;
+
+    renderGraph();
+    showMessage(`Loaded graph with ${graphData.nodes.length} nodes and ${graphData.edges.length} edges`, 'success');
+  } catch (error) {
+    console.error('Load error:', error);
+    showMessage(`Error loading graph: ${error.message}`, 'error');
+  }
 }
 
 // Event listeners
 analyzeBtn.addEventListener('click', analyzeRepository);
 clearBtn.addEventListener('click', clearGraph);
-loadBtn.addEventListener('click', () => {
-  showMessage('Load functionality available in Forge deployment only', 'info');
-});
+loadBtn.addEventListener('click', loadGraph);
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   console.log('Initializing CodeGraph UW...');
 
   if (typeof cytoscape === 'undefined') {
@@ -463,6 +519,19 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   console.log('Cytoscape library loaded successfully');
+
   initGraph();
-  showMessage('Ready to analyze GitHub repositories (up to 50 files)', 'info');
+
+  analyzeBtn.disabled = true;
+  loadBtn.disabled = true;
+
+  if (await isForgeReady()) {
+    analyzeBtn.disabled = false;
+    loadBtn.disabled = false;
+    showMessage('Ready to analyze GitHub repositories (up to 50 files). API keys managed via Forge environment variables.', 'info');
+  } else {
+    showMessage('Warning: Not running in Forge context. Please deploy to Jira to use this app.', 'error');
+    analyzeBtn.disabled = true;
+    loadBtn.disabled = true;
+  }
 });

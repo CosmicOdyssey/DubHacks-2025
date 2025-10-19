@@ -1,6 +1,68 @@
 import { storage, fetch } from '@forge/api';
 
 // ============================================================================
+// GITHUB API INTEGRATION
+// ============================================================================
+
+async function fetchGitHubRepoTree(owner, repo, branch = 'main') {
+  const githubToken = process.env.GITHUB_TOKEN;
+  if (!githubToken) {
+    throw new Error('GITHUB_TOKEN environment variable not set');
+  }
+
+  const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${githubToken}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitHub API error: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  // Filter code files only
+  return data.tree.filter(item =>
+    item.type === 'blob' &&
+    /\.(js|jsx|ts|tsx|py|java|go|rs|cpp|c|h|hpp|cs|rb|php|swift|kt|scala|clj|ex|exs|erl|hs|ml|r|dart|lua|pl|sh|bash|sql|vue|svelte)$/i.test(item.path) &&
+    !item.path.includes('node_modules') &&
+    !item.path.includes('.min.') &&
+    !item.path.includes('dist/') &&
+    !item.path.includes('build/')
+  );
+}
+
+async function fetchGitHubFileContent(owner, repo, path, branch = 'main') {
+  const githubToken = process.env.GITHUB_TOKEN;
+  if (!githubToken) {
+    throw new Error('GITHUB_TOKEN environment variable not set');
+  }
+
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${githubToken}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28'
+    }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch ${path}: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  // Decode base64 content
+  return Buffer.from(data.content, 'base64').toString('utf-8');
+}
+
+// ============================================================================
 // GEMINI FLASH API INTEGRATION
 // ============================================================================
 
@@ -10,31 +72,30 @@ async function analyzeCodeWithGemini(code, filename) {
     throw new Error('GEMINI_API_KEY environment variable not set');
   }
 
-  const prompt = `Analyze this code file and extract structured information:
+  const prompt = `Analyze this code file and extract structured metadata for knowledge graph visualization.
 
 Filename: ${filename}
 
 Code:
 \`\`\`
-${code}
+${code.substring(0, 8000)}
 \`\`\`
 
-Extract and return JSON with:
-- "title": A concise name for this code block (like a Logseq page name)
-- "purpose": Main responsibility/purpose (1-2 sentences)
-- "dependencies": Array of imported modules/files
-- "exports": Array of exported functions/classes/variables
-- "calls": Array of function/method names called within this code
-- "concepts": Array of domain concepts/terms (e.g., "authentication", "database")
-- "complexity": Estimated complexity (low/medium/high)
-- "chunks": Array of logical code chunks, each with:
-  - "type": function/class/module/import
-  - "name": identifier name
-  - "summary": brief description
-  - "lineStart": approximate starting line
-  - "lineEnd": approximate ending line
+Return JSON with this structure:
+{
+  "title": "Short descriptive name (2-4 words)",
+  "purpose": "One sentence describing what this file does",
+  "blockType": "frontend|backend|database|auth|utils|config|test|other",
+  "complexity": "low|medium|high",
+  "dependencies": {
+    "external": ["library names only, e.g., 'react', 'express'"],
+    "internal": ["relative file paths imported, e.g., './utils/helper.js'"],
+    "apis": ["external APIs called, e.g., 'GitHub API', 'Stripe API'"]
+  },
+  "relatedConcepts": ["key domain concepts, 2-5 max"]
+}
 
-Return ONLY valid JSON, no markdown formatting.`;
+Keep it MINIMAL. Focus on helping visualize the repository structure.`;
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
@@ -91,8 +152,9 @@ async function getCodeGraph(projectId) {
 async function addNodeToGraph(projectId, node) {
   const graph = await getCodeGraph(projectId);
 
-  // Check if node already exists
-  const existingIndex = graph.nodes.findIndex(n => n.id === node.id);
+  // Check if node already exists (node now has data wrapper)
+  const nodeId = node.data?.id || node.id;
+  const existingIndex = graph.nodes.findIndex(n => (n.data?.id || n.id) === nodeId);
   if (existingIndex >= 0) {
     graph.nodes[existingIndex] = node;
   } else {
@@ -106,10 +168,14 @@ async function addNodeToGraph(projectId, node) {
 async function addEdgeToGraph(projectId, edge) {
   const graph = await getCodeGraph(projectId);
 
-  // Avoid duplicate edges
-  const exists = graph.edges.some(
-    e => e.source === edge.source && e.target === edge.target && e.type === edge.type
-  );
+  // Avoid duplicate edges (edge now has data wrapper)
+  const edgeData = edge.data || edge;
+  const exists = graph.edges.some(e => {
+    const eData = e.data || e;
+    return eData.source === edgeData.source &&
+           eData.target === edgeData.target &&
+           eData.type === edgeData.type;
+  });
 
   if (!exists) {
     graph.edges.push(edge);
@@ -126,16 +192,17 @@ async function addEdgeToGraph(projectId, edge) {
 async function buildGraphFromAnalysis(projectId, filename, code, analysis) {
   const fileNodeId = `file:${filename}`;
 
-  // Create file-level node
+  // Create file-level node (wrapped in Cytoscape format)
   const fileNode = {
-    id: fileNodeId,
-    type: 'file',
-    label: analysis.title || filename,
     data: {
+      id: fileNodeId,
+      type: 'file',
+      blockType: analysis.blockType || 'other',
+      label: analysis.title || filename.split('/').pop(),
       filename,
       purpose: analysis.purpose,
       complexity: analysis.complexity,
-      concepts: analysis.concepts || [],
+      relatedConcepts: analysis.concepts || [],
       code: code.substring(0, 5000), // Store first 5KB for preview
     }
   };
@@ -147,10 +214,10 @@ async function buildGraphFromAnalysis(projectId, filename, code, analysis) {
     for (const chunk of analysis.chunks) {
       const chunkId = `chunk:${filename}:${chunk.name}`;
       const chunkNode = {
-        id: chunkId,
-        type: chunk.type || 'chunk',
-        label: chunk.name,
         data: {
+          id: chunkId,
+          type: chunk.type || 'chunk',
+          label: chunk.name,
           filename,
           summary: chunk.summary,
           lineStart: chunk.lineStart,
@@ -162,36 +229,77 @@ async function buildGraphFromAnalysis(projectId, filename, code, analysis) {
 
       // Link chunk to file
       await addEdgeToGraph(projectId, {
-        source: fileNodeId,
-        target: chunkId,
-        type: 'CONTAINS',
-        label: 'contains'
+        data: {
+          source: fileNodeId,
+          target: chunkId,
+          type: 'CONTAINS',
+          label: 'contains'
+        }
       });
     }
   }
 
-  // Create dependency edges
-  if (analysis.dependencies && Array.isArray(analysis.dependencies)) {
-    for (const dep of analysis.dependencies) {
-      const depNodeId = `file:${dep}`;
+  // Add external library dependencies
+  if (analysis.dependencies?.external) {
+    for (const lib of analysis.dependencies.external) {
+      const libId = `lib:${lib}`;
+
+      // Create library node if it doesn't exist
+      const graph = await getCodeGraph(projectId);
+      if (!graph.nodes.some(n => n.data?.id === libId)) {
+        await addNodeToGraph(projectId, {
+          data: { id: libId, label: lib, type: 'library' }
+        });
+      }
+
+      // Create edge
       await addEdgeToGraph(projectId, {
-        source: fileNodeId,
-        target: depNodeId,
-        type: 'IMPORTS',
-        label: 'imports'
+        data: { source: fileNodeId, target: libId, label: 'uses' }
       });
     }
   }
 
-  // Create call edges (simplified - would need more context for full implementation)
-  if (analysis.calls && Array.isArray(analysis.calls)) {
-    for (const call of analysis.calls) {
-      const callNodeId = `function:${call}`;
+  // Add internal file dependencies
+  if (analysis.dependencies?.internal) {
+    for (const path of analysis.dependencies.internal) {
+      const targetId = `file:${path}`;
+
+      // Create placeholder node if target doesn't exist
+      const graph = await getCodeGraph(projectId);
+      if (!graph.nodes.some(n => n.data?.id === targetId)) {
+        await addNodeToGraph(projectId, {
+          data: {
+            id: targetId,
+            label: path.split('/').pop(),
+            filename: path,
+            type: 'placeholder'
+          }
+        });
+      }
+
+      // Create edge
       await addEdgeToGraph(projectId, {
-        source: fileNodeId,
-        target: callNodeId,
-        type: 'CALLS',
-        label: 'calls'
+        data: { source: fileNodeId, target: targetId, label: 'imports' }
+      });
+    }
+  }
+
+  // Add API dependencies
+  if (analysis.dependencies?.apis) {
+    for (const api of analysis.dependencies.apis) {
+      const apiId = `api:${api}`;
+
+      // Create API node if it doesn't exist
+      const graph = await getCodeGraph(projectId);
+      if (!graph.nodes.some(n => n.data?.id === apiId)) {
+        await addNodeToGraph(projectId, {
+          data: { id: apiId, label: api, type: 'api' }
+        });
+      }
+
+      // Create edge
+      await addEdgeToGraph(projectId, {
+        data: { source: fileNodeId, target: apiId, label: 'calls' }
       });
     }
   }
@@ -276,6 +384,56 @@ export const handler = async (req) => {
         body: {
           ok: true,
           message: 'Graph cleared'
+        }
+      };
+    }
+
+    // Fetch GitHub repository tree
+    if (path === '/github/tree') {
+      const { owner, repo, branch = 'main' } = payload || {};
+
+      if (!owner || !repo) {
+        return {
+          body: {
+            ok: false,
+            error: 'Missing required fields: owner, repo'
+          }
+        };
+      }
+
+      console.log('Fetching GitHub repo tree:', { owner, repo, branch });
+      const files = await fetchGitHubRepoTree(owner, repo, branch);
+
+      return {
+        body: {
+          ok: true,
+          files,
+          count: files.length
+        }
+      };
+    }
+
+    // Fetch GitHub file content
+    if (path === '/github/file') {
+      const { owner, repo, path: filePath, branch = 'main' } = payload || {};
+
+      if (!owner || !repo || !filePath) {
+        return {
+          body: {
+            ok: false,
+            error: 'Missing required fields: owner, repo, path'
+          }
+        };
+      }
+
+      console.log('Fetching GitHub file:', { owner, repo, path: filePath, branch });
+      const content = await fetchGitHubFileContent(owner, repo, filePath, branch);
+
+      return {
+        body: {
+          ok: true,
+          content,
+          path: filePath
         }
       };
     }
