@@ -1,13 +1,44 @@
 ﻿// CodeGraph Demo (Dev) - Full GitHub Repository Analyzer
 // Gemini API Configuration
-const GEMINI_API_KEY = 'gemini api key here';
+const GEMINI_API_KEY = 'gemini key here';
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
 
 // GitHub configuration
-const GITHUB_TOKEN = 'github api key here';
+const GITHUB_TOKEN = 'github key here';
 
 // Graph data
 let graphData = { nodes: [], edges: [] };
+
+// Theme toggle functionality
+function toggleTheme() {
+  const body = document.body;
+  const themeText = document.getElementById('themeText');
+  
+  if (body.classList.contains('light-mode')) {
+    body.classList.remove('light-mode');
+    themeText.textContent = 'Dark Mode';
+    localStorage.setItem('theme', 'dark');
+  } else {
+    body.classList.add('light-mode');
+    themeText.textContent = 'Light Mode';
+    localStorage.setItem('theme', 'light');
+  }
+}
+
+// Load theme preference from localStorage
+function loadThemePreference() {
+  const savedTheme = localStorage.getItem('theme');
+  const body = document.body;
+  const themeText = document.getElementById('themeText');
+  
+  if (savedTheme === 'light') {
+    body.classList.add('light-mode');
+    themeText.textContent = 'Light Mode';
+  } else {
+    themeText.textContent = 'Dark Mode';
+  }
+}
+
 let simulation = null;
 let svg = null;
 let g = null;
@@ -1237,13 +1268,6 @@ function initLegend() {
   updateLegendUI();
 }
 
-// Event listeners
-analyzeBtn.addEventListener('click', analyzeRepository);
-clearBtn.addEventListener('click', clearGraph);
-loadBtn.addEventListener('click', () => {
-  showMessage('Load functionality available in Forge deployment only', 'info');
-});
-
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
   console.log('Initializing CodeGraph Demo (Dev)...');
@@ -1258,5 +1282,23 @@ document.addEventListener('DOMContentLoaded', function() {
   initGraph();
   initLegend();
   showMessage('Ready to analyze GitHub repositories (up to 50 files)', 'info');
+  
+  // Load saved theme preference
+  loadThemePreference();
+  
+  // Attach event listeners
+  analyzeBtn.addEventListener('click', analyzeRepository);
+  clearBtn.addEventListener('click', clearGraph);
+  loadBtn.addEventListener('click', () => {
+    showMessage('Load functionality available in Forge deployment only', 'info');
+  });
+  
+  // Theme toggle button event listener
+  const themeToggleButton = document.getElementById('themeToggle');
+  if (themeToggleButton) {
+    themeToggleButton.addEventListener('click', toggleTheme);
+    console.log('Theme toggle button listener attached');
+  } else {
+    console.warn('Theme toggle button not found');
+  }
 });
-
