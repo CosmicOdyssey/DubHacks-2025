@@ -9,7 +9,7 @@ modules:
       handler: backend/resolvers.handler
   jira:projectPage:
     - key: codegraph-demo-project-page
-      title: CodeGraph Demo (Dev)
+      title: CodeGraph Atlassian Demo
       resource: ui
       resolver:
         function: codegraph-demo-resolver
