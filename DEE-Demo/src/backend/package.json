@@ -1,0 +1,11 @@
+{
+  "name": "dee-backend",
+  "version": "1.0.0",
+  "description": "DEE Dashboard Backend Resolver",
+  "main": "resolvers.js",
+  "dependencies": {
+    "@forge/resolver": "^1.5.0",
+    "@forge/api": "^2.0.0"
+  }
+}
+

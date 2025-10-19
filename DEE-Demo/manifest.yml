@@ -8,9 +8,9 @@ modules:
     - key: main-resolver
       handler: backend/resolvers.handler
   jira:projectPage:
-    - key: dee-demo-hello-world-project-page
-      title: DEE Demo
-      resource: ui
+    - key: dee-pm-dashboard
+      title: DEE PM Dashboard
+      resource: pm-ui
       resolver:
         function: main-resolver
   jira:issueContext:
@@ -20,9 +20,13 @@ modules:
       description: Compact per-issue DEE panel
       icon: https://developer.atlassian.com/platform/forge/images/issue-panel-icon.svg
       resource: ui
+      resolver:
+        function: main-resolver
 
 resources:
   - key: ui
+    path: static/ui
+  - key: pm-ui
     path: static/ui
 
 permissions:
@@ -33,4 +37,8 @@ permissions:
   external:
     fetch:
       backend:
-        - address: https://dee-api.example.com
+        - address: https://*.herokuapp.com
+        - address: https://*.railway.app
+        - address: https://*.vercel.app
+        - address: https://*.ngrok.io
+        - address: https://*.ngrok-free.app

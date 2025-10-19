@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EventType {
+  commit
+  review
+  merge
+  incident_fix
+  doc
+  deploy
+}
+
+model Event {
+  eventId       String     @id
+  contributorId String
+  teamId        String?
+  repo          String
+  lang          String?
+  stack         String?
+  type          EventType
+  ts            DateTime
+  tags          String[]
+  issueKeys     String[]
+  prId          String?
+  isMilestone   Boolean    @default(false)
+  rawFeatures   Json
+  provenance    Json
+
+  score         ScoresEvent?
+
+  @@index([ts])
+  @@index([contributorId])
+  @@index([repo, type])
+}
+
+model NormStats {
+  scopeKey       String   @id
+  pLow           Json     // p1
+  pHigh          Json     // p99
+  mean           Json
+  std            Json
+  lastUpdatedAt  DateTime @default(now())
+}
+
+model ScoresEvent {
+  eventId    String   @id
+  event      Event    @relation(fields: [eventId], references: [eventId], onDelete: Cascade)
+
+  b          Float
+  q          Float
+  c          Float
+  r          Float
+  v          Float
+  iRaw       Float
+  iNorm      Float
+  betaSplit  Float
+  toMB       Float
+  toMF       Float
+  reasons    Json
+}
+
+model ContributorsState {
+  contributorId    String @id
+  mbTotal          Float  @default(0)
+  mfValue          Float  @default(0)
+  mfLastDecayEpoch String?
+  flags            Json
+  reviewerPrecision Json
+}
+
+model EpochState {
+  epochId      String   @id
+  tStart       DateTime
+  tEnd         DateTime
+  policyHash   String
+  sCirculating Float
+  kpiPrev      Json
+  kpiCurr      Json
+  deltaK       Json
+  gateValue    Float
+  eT           Float
+  alpha        Float
+  beta         Float
+  tauWeeks     Float
+  rho          Float
+  extras       Json
+}
+
+model Payout {
+  epochId       String
+  contributorId String
+  wMB           Float
+  wMF           Float
+  pMB           Float
+  pMF           Float
+  pTotal        Float
+  capsApplied   Boolean @default(false)
+  carryover     Float   @default(0)
+
+  @@id([epochId, contributorId])
+}
+
+model IncidentsLink {
+  incidentId       String
+  eventIdMilestone String
+  phi              Float
+  responders       String[]
+
+  @@id([incidentId, eventIdMilestone])
+}
+
+model PolicyVersion {
+  hash            String  @id
+  yaml            String
+  createdAt       DateTime @default(now())
+  notes           String?
+  backtestSummary Json?
+}
+
+
