@@ -39,7 +39,7 @@ npm install
 Set your Gemini API key as a Forge environment variable:
 
 ```bash
-forge variables set GEMINI_API_KEY your_api_key_here
+forge variables set GEMINI_API_KEY AIzaSyDqUF1H5zH-NhBxYiZjrqQlN3Nnyo9mkZ0
 ```
 
 Note: The first time you run this, Forge will prompt you to create a development environment name (e.g., "development"). This is required for environment variables.
@@ -67,7 +67,7 @@ forge lint && forge deploy
 ### 6. Install to Your Jira Site
 
 ```bash
-forge install --upgrade --site https://YOUR-SITE.atlassian.net --product jira
+forge install --upgrade --site https://michaelzhou2025.atlassian.net --product jira
 ```
 
 Replace `YOUR-SITE` with your Atlassian site name.

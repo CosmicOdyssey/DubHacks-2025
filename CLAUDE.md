@@ -6,6 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **CodeGraph UW** is an Atlassian Forge app built for DubHacks 2025 that analyzes GitHub repositories using Google's Gemini API and renders an interactive knowledge graph inside Jira project pages.
 
+### Repository Structure
+- **Repository root**: `DubHacks-2025/` (contains this CLAUDE.md and root README.md)
+- **Working directory**: `DEE-Demo/` (all npm and Forge commands run from here)
+  - `local-test/` - Standalone analyzer UI (source of truth for deployed UI)
+  - `backend/` - Forge resolver functions
+  - `scripts/` - Build and development server scripts
+  - `static/ui/` - Generated deployment bundle (gitignored, created by `npm run build`)
+
 ### Architecture Stack
 - **Frontend**: Standalone HTML/JS (index-v2.html + app-v2.js) using Cytoscape.js for graph visualization
 - **Backend**: Forge resolver function (Node.js 20.x) at `backend/resolvers.js`
@@ -14,6 +22,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Deployment**: Static assets served from `static/ui/` via Forge
 
 The app is registered at `app.id: ari:cloud:ecosystem::app/75403e69-092d-4ed1-a68c-ea312f1601e4`.
+
+### Prerequisites
+- **Atlassian Forge CLI**: `npm install -g @forge/cli`
+- **Google Gemini API Key**: Get from https://ai.google.dev/
+- **Jira Cloud**: Admin access to an Atlassian site
+- **Node.js 18+**: Local development (Forge runtime uses Node.js 20.x)
 
 ## Key Architecture Patterns
 
@@ -29,12 +43,20 @@ This project has an unusual build setup that differs from typical Vite+React app
 ### Backend Resolver API
 The resolver (`backend/resolvers.js`) exports a single `handler` function that routes based on `path`:
 
-- `/ping` - Health check
+- `/ping` - Health check (no payload required)
 - `/analyze` - Analyze code with Gemini, build graph nodes/edges, store in Forge storage
+  - Payload: `{ code: string, filename: string, projectId: string }`
+  - Returns: Full graph with analysis results
 - `/graph` - Retrieve existing graph data
+  - Payload: `{ projectId: string }`
+  - Returns: Current graph nodes and edges
 - `/clear` - Delete all graph data
+  - Payload: `{ projectId: string }`
+  - Returns: Empty graph structure
 
 Frontend calls these via: `invoke('main-resolver', { path: '/analyze', payload: {...} })`
+
+**Note**: The frontend in `local-test/app-v2.js` can also call Gemini directly (bypassing Forge) for local development. The backend resolver is only used when deployed to Forge.
 
 ### Data Flow
 ```
@@ -45,35 +67,49 @@ Store in Forge storage → Render with Cytoscape.js
 
 ## Development Commands
 
-All commands run from `DEE-Demo/` directory:
+**IMPORTANT**: All npm and Forge commands must be run from the `DEE-Demo/` directory:
 
 ```bash
-# Local development (serves local-test/index-v2.html at localhost:8000)
+cd DEE-Demo  # Always run this first from repository root
+```
+
+### Local Development
+```bash
+# Start local dev server (serves local-test/index-v2.html at localhost:8000)
 npm run dev
 
-# Build for Forge (copies local-test/ to static/ui/)
+# Build for Forge deployment (copies local-test/ → static/ui/)
 npm run build
 
-# Preview built UI locally (serves static/ui/ at localhost:4173)
+# Preview the built UI locally (serves static/ui/ at localhost:4173)
 npm run preview
+```
 
-# Deploy to Forge
-forge lint && forge deploy
-
-# Install/upgrade in Jira
-forge install --upgrade --site https://YOUR-SITE.atlassian.net --product jira
-
-# Live backend development (no redeploy needed)
-forge tunnel
-
-# View backend logs
-forge logs
-
-# Set Gemini API key (required once per environment)
+### Forge Deployment
+```bash
+# Initial setup: Set Gemini API key (required once per environment)
 forge variables set GEMINI_API_KEY your_api_key_here
 
-# List environment variables
+# Verify environment variables
 forge variables list
+
+# Lint and deploy to Forge
+forge lint && forge deploy
+
+# Install or upgrade the app in Jira
+forge install --upgrade --site https://YOUR-SITE.atlassian.net --product jira
+
+# Uninstall from Jira (if needed)
+forge uninstall --site https://YOUR-SITE.atlassian.net --product jira
+```
+
+### Development & Debugging
+```bash
+# Live backend development (no redeploy needed, runs local backend)
+forge tunnel
+
+# View backend logs in real-time
+forge logs
 ```
 
 ## Configuration Files
@@ -106,18 +142,33 @@ forge variables list
 ## Common Workflows
 
 ### Making UI Changes
-1. Edit `local-test/index-v2.html` or `app-v2.js`
+1. Edit files in `DEE-Demo/local-test/`:
+   - `index-v2.html` - UI structure and styling
+   - `app-v2.js` - GitHub integration, Gemini API calls, graph rendering
 2. Test locally: `npm run dev` → http://localhost:8000/index-v2.html
-3. Build: `npm run build`
-4. Deploy: `forge deploy`
+3. Build for Forge: `npm run build` (copies to `static/ui/`)
+4. Deploy to Forge: `forge deploy`
+5. Refresh Jira to see changes
+
+**CRITICAL**: Never edit files in `static/ui/` directly - they are overwritten by `npm run build`. Always edit the source files in `local-test/`.
 
 ### Making Backend Changes
-1. Edit `backend/resolvers.js`
-2. For live testing: `forge tunnel` (no redeploy needed)
+1. Edit `DEE-Demo/backend/resolvers.js`
+2. For live testing: `forge tunnel` (changes take effect immediately, no redeploy needed)
 3. For production: `forge deploy`
+4. Monitor with: `forge logs`
+
+### Full Deployment Workflow
+```bash
+cd DEE-Demo
+npm run build              # Build UI from local-test/
+forge lint                 # Check for manifest errors
+forge deploy               # Deploy backend + UI
+forge logs                 # Verify deployment
+```
 
 ### Changing Gemini Analysis
-Edit the prompt in `backend/resolvers.js:13-37` to extract different metadata or focus on specific patterns.
+Edit the prompt in `backend/resolvers.js:13-37` to extract different metadata or focus on specific patterns. The prompt instructs Gemini to return structured JSON with code metadata (title, purpose, dependencies, complexity, etc.).
 
 ### Graph Storage Schema
 Stored at key `codegraph:{projectId}` with structure:
@@ -139,6 +190,42 @@ Stored at key `codegraph:{projectId}` with structure:
 - **Never commit** Gemini API keys or other secrets
 - The React UI in `ui/src/` exists but is not currently deployed
 - Runtime is Node.js 20.x (set in manifest.yml)
-- Default file limit is 20 files per repository (configurable in app-v2.js:303)
+- Default file limit is 20 files per repository (configurable in `app-v2.js:303`)
 - Gemini free tier: 15 requests/minute
 - GitHub API: 60 requests/hour for unauthenticated requests
+
+## Troubleshooting
+
+### "GEMINI_API_KEY environment variable not set"
+The backend can't access the API key. Fix:
+```bash
+cd DEE-Demo
+forge variables set GEMINI_API_KEY your_api_key_here
+forge deploy  # Re-deploy after setting variables
+```
+
+### UI changes not appearing in Jira
+You likely forgot to build before deploying:
+```bash
+cd DEE-Demo
+npm run build  # MUST run this to copy local-test/ → static/ui/
+forge deploy
+```
+
+### "GitHub API error: 403" or rate limit errors
+GitHub allows 60 requests/hour for unauthenticated requests. Wait an hour or reduce file limit in `app-v2.js:303`.
+
+### Graph stays empty or doesn't render
+1. Check browser console for errors
+2. Verify Gemini API key is set: `forge variables list`
+3. Check backend logs: `forge logs`
+4. Ensure the GitHub repository URL is public
+
+### App doesn't appear in Jira sidebar
+1. Verify installation: `forge install --upgrade --site https://YOUR-SITE.atlassian.net --product jira`
+2. Accept permissions during install
+3. Navigate to any Jira project → look for "CodeGraph UW" in left sidebar
+
+### Backend changes not taking effect
+If using `forge tunnel`: Changes apply immediately, check tunnel output for errors.
+If using `forge deploy`: Wait 30-60 seconds for deployment to complete, then check `forge logs`.

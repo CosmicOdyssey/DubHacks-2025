@@ -4,583 +4,66 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CodeGraph UW</title>
-  <!-- Local Cytoscape library - bundled with app -->
+  <link rel="stylesheet" href="styles.css">
   <script src="cytoscape.min.js"></script>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-      background: #FFFFFF;
-      color: #172B4D;
-      overflow: hidden;
-      line-height: 1.5;
-    }
-
-    .container {
-      display: grid;
-      grid-template-columns: 320px 1fr;
-      height: 100vh;
-      background: #F4F5F7;
-    }
-
-    .sidebar {
-      background: #FFFFFF;
-      border-right: 2px solid #DFE1E6;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .header {
-      background: linear-gradient(135deg, #0052CC 0%, #2684FF 100%);
-      color: white;
-      padding: 24px 20px;
-      flex-shrink: 0;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    .header h1 {
-      margin: 0;
-      font-size: 20px;
-      font-weight: 600;
-      letter-spacing: -0.2px;
-    }
-
-    .header p {
-      margin: 6px 0 0;
-      opacity: 0.95;
-      font-size: 13px;
-      font-weight: 400;
-    }
-
-    .controls {
-      padding: 20px;
-      flex-shrink: 0;
-      border-bottom: 2px solid #DFE1E6;
-      background: #FAFBFC;
-    }
-
-    .form-group {
-      margin-bottom: 16px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-weight: 600;
-      color: #172B4D;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-
-    input[type="text"],
-    input[type="url"] {
-      width: 100%;
-      padding: 10px 12px;
-      background: #FFFFFF;
-      border: 2px solid #DFE1E6;
-      border-radius: 3px;
-      color: #172B4D;
-      font-family: inherit;
-      font-size: 14px;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    input:focus {
-      outline: none;
-      border-color: #0052CC;
-      box-shadow: 0 0 0 1px #0052CC;
-    }
-
-    button {
-      width: 100%;
-      background: #0052CC;
-      color: white;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 3px;
-      font-weight: 600;
-      cursor: pointer;
-      font-size: 14px;
-      transition: background 0.2s;
-      text-transform: none;
-      letter-spacing: 0;
-    }
-
-    button:hover:not(:disabled) {
-      background: #0747A6;
-    }
-
-    button:active:not(:disabled) {
-      background: #003884;
-    }
-
-    button:disabled {
-      background: #F4F5F7;
-      color: #A5ADBA;
-      cursor: not-allowed;
-    }
-
-    .file-tree {
-      flex: 1;
-      overflow-y: auto;
-      padding: 12px;
-      background: #FFFFFF;
-    }
-
-    .file-tree::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .file-tree::-webkit-scrollbar-track {
-      background: #F4F5F7;
-    }
-
-    .file-tree::-webkit-scrollbar-thumb {
-      background: #C1C7D0;
-      border-radius: 4px;
-    }
-
-    .file-tree::-webkit-scrollbar-thumb:hover {
-      background: #A5ADBA;
-    }
-
-    .file-item {
-      padding: 8px 12px;
-      margin: 2px 0;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 13px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: background 0.15s;
-      color: #172B4D;
-    }
-
-    .file-item:hover {
-      background: #EBECF0;
-    }
-
-    .file-item.selected {
-      background: #DEEBFF;
-      color: #0052CC;
-      font-weight: 500;
-    }
-
-    .file-icon {
-      font-size: 14px;
-      opacity: 0.7;
-    }
-
-    .main-area {
-      display: flex;
-      flex-direction: column;
-      background: #FFFFFF;
-    }
-
-    .toolbar {
-      background: #FAFBFC;
-      border-bottom: 2px solid #DFE1E6;
-      padding: 12px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .stats {
-      display: flex;
-      gap: 24px;
-      font-size: 13px;
-      color: #5E6C84;
-    }
-
-    .stat-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .stat-value {
-      color: #0052CC;
-      font-weight: 700;
-      font-size: 16px;
-    }
-
-    #cy {
-      flex: 1;
-      background: #FAFBFC;
-    }
-
-    .progress {
-      background: #FFFFFF;
-      border: 2px solid #DFE1E6;
-      border-radius: 3px;
-      padding: 16px;
-      margin: 12px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    }
-
-    .progress-text {
-      color: #172B4D;
-      font-size: 13px;
-      margin-bottom: 4px;
-      font-weight: 500;
-    }
-
-    .progress-bar {
-      height: 8px;
-      background: #DFE1E6;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-top: 8px;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #0052CC, #2684FF);
-      transition: width 0.3s;
-      border-radius: 4px;
-    }
-
-    .error {
-      background: #FFEBE6;
-      border-left: 4px solid #DE350B;
-      color: #BF2600;
-      padding: 12px 16px;
-      border-radius: 3px;
-      margin: 12px;
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    .success {
-      background: #E3FCEF;
-      border-left: 4px solid #36B37E;
-      color: #006644;
-      padding: 12px 16px;
-      border-radius: 3px;
-      margin: 12px;
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    .info {
-      background: #DEEBFF;
-      border-left: 4px solid #0052CC;
-      color: #0747A6;
-      padding: 12px 16px;
-      border-radius: 3px;
-      margin: 12px;
-      font-size: 13px;
-    }
-
-    .node-details {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      background: #FFFFFF;
-      border: 2px solid #DFE1E6;
-      border-radius: 3px;
-      padding: 16px;
-      max-width: 400px;
-      max-height: 60vh;
-      overflow-y: auto;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-      display: none;
-    }
-
-    .node-details::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .node-details::-webkit-scrollbar-track {
-      background: #F4F5F7;
-    }
-
-    .node-details::-webkit-scrollbar-thumb {
-      background: #C1C7D0;
-      border-radius: 4px;
-    }
-
-    .node-details.visible {
-      display: block;
-    }
-
-    .node-details h3 {
-      margin: 0 0 12px;
-      color: #172B4D;
-      font-size: 16px;
-      font-weight: 600;
-      border-bottom: 2px solid #DFE1E6;
-      padding-bottom: 8px;
-    }
-
-    .node-details p {
-      margin: 8px 0;
-      font-size: 13px;
-      color: #5E6C84;
-      line-height: 1.6;
-    }
-
-    .node-details strong {
-      color: #172B4D;
-      font-weight: 600;
-    }
-
-    .loading {
-      text-align: center;
-      padding: 40px;
-      color: #5E6C84;
-    }
-
-    .spinner {
-      border: 3px solid #DFE1E6;
-      border-top: 3px solid #0052CC;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 12px;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 3px;
-      font-size: 11px;
-      font-weight: 700;
-      margin-left: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-
-    .badge.high {
-      background: #FFEBE6;
-      color: #BF2600;
-    }
-
-    .badge.medium {
-      background: #FFFAE6;
-      color: #FF8B00;
-    }
-
-    .badge.low {
-      background: #E3FCEF;
-      color: #006644;
-    }
-
-    .legend {
-      position: absolute;
-      bottom: 20px;
-      left: 340px;
-      background: #FFFFFF;
-      border: 2px solid #DFE1E6;
-      border-radius: 3px;
-      padding: 16px;
-      font-size: 12px;
-      max-width: 240px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-      z-index: 1000;
-    }
-
-    .legend h4 {
-      margin: 0 0 12px;
-      font-size: 13px;
-      color: #172B4D;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-      border-bottom: 2px solid #DFE1E6;
-      padding-bottom: 8px;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 6px 0;
-      color: #5E6C84;
-      font-size: 12px;
-    }
-
-    .legend-color {
-      width: 14px;
-      height: 14px;
-      border-radius: 3px;
-      flex-shrink: 0;
-      border: 1px solid rgba(0,0,0,0.1);
-    }
-
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: #5E6C84;
-      padding: 40px;
-      text-align: center;
-    }
-
-    .empty-state h3 {
-      color: #172B4D;
-      margin-bottom: 8px;
-      font-size: 18px;
-    }
-
-    .empty-state p {
-      font-size: 14px;
-      max-width: 400px;
-      line-height: 1.6;
-    }
-
-    .action-buttons {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .btn-secondary {
-      background: #FAFBFC;
-      color: #172B4D;
-      border: 2px solid #DFE1E6;
-      padding: 6px 12px;
-      font-size: 13px;
-      width: auto;
-    }
-
-    .btn-secondary:hover:not(:disabled) {
-      background: #EBECF0;
-    }
-
-  </style>
 </head>
 <body>
   <div class="container">
-    <div class="sidebar">
-      <div class="header">
-        <h1>CodeGraph UW</h1>
-        <p>Repository Knowledge Graph</p>
+    <div class="header">
+      <h1>CodeGraph UW</h1>
+      <p>GitHub Repository Knowledge Graph Analyzer</p>
+    </div>
+
+    <div class="controls">
+      <div class="form-group">
+        <label for="repoUrl">GitHub Repository URL</label>
+        <input
+          type="url"
+          id="repoUrl"
+          placeholder="https://github.com/user/repo"
+          value="https://github.com/facebook/react"
+        >
       </div>
 
-      <div class="controls">
-        <div class="form-group">
-          <label for="repoUrl">GitHub Repository URL</label>
-          <input
-            type="url"
-            id="repoUrl"
-            placeholder="https://github.com/user/repo"
-            value="https://github.com/facebook/react"
-          >
-        </div>
-
-        <div class="form-group">
-          <label for="branch">Branch</label>
-          <input
-            type="text"
-            id="branch"
-            placeholder="main"
-            value="main"
-          >
-        </div>
-
-        <button id="analyzeRepoBtn">Analyze Repository</button>
+      <div class="form-group">
+        <label for="branch">Branch (default: main)</label>
+        <input
+          type="text"
+          id="branch"
+          placeholder="main"
+          value="main"
+        >
       </div>
 
-      <div class="file-tree" id="fileTree">
-        <div style="color: #5E6C84; font-size: 13px; text-align: center; padding: 20px;">
-          Enter a GitHub repository URL and click Analyze to get started
-        </div>
+      <button id="analyzeBtn">Analyze Repository</button>
+      <button id="clearBtn">Clear Graph</button>
+      <button id="loadBtn">Load Saved Graph</button>
+    </div>
+
+    <div id="messageArea"></div>
+
+    <div class="stats">
+      <div class="stat-item">
+        <span>Files:</span>
+        <span class="stat-value" id="fileCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span>Nodes:</span>
+        <span class="stat-value" id="nodeCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span>Edges:</span>
+        <span class="stat-value" id="edgeCount">0</span>
       </div>
     </div>
 
-    <div class="main-area">
-      <div class="toolbar">
-        <div class="stats">
-          <div class="stat-item">
-            <span>Files:</span>
-            <span class="stat-value" id="fileCount">0</span>
-          </div>
-          <div class="stat-item">
-            <span>Nodes:</span>
-            <span class="stat-value" id="nodeCount">0</span>
-          </div>
-          <div class="stat-item">
-            <span>Edges:</span>
-            <span class="stat-value" id="edgeCount">0</span>
-          </div>
-        </div>
-        <div class="action-buttons">
-          <button id="resetBtn" class="btn-secondary">
-            Reset Graph
-          </button>
-        </div>
-      </div>
-
+    <div class="graph-container">
       <div id="cy"></div>
-
-      <div id="messageArea"></div>
-
-      <!-- Legend -->
-      <div class="legend" id="legend">
-        <h4>Categories</h4>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #FFAB00;"></div>
-          <span>Frontend / UI</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #0052CC;"></div>
-          <span>Backend API</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #36B37E;"></div>
-          <span>Database</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #FF5630;"></div>
-          <span>Authentication</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #00B8D9;"></div>
-          <span>File Handling</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #6554C0;"></div>
-          <span>Business Logic</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #00875A;"></div>
-          <span>Data Processing</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #FF8B00;"></div>
-          <span>Testing</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #8993A4;"></div>
-          <span>Config</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color" style="background: #403294;"></div>
-          <span>Deployment</span>
-        </div>
-      </div>
+      <div class="node-details" id="nodeDetails"></div>
     </div>
-  </div>
 
-  <div class="node-details" id="nodeDetails"></div>
+    <div class="file-list" id="fileList"></div>
+  </div>
 
   <script src="app-v2.js"></script>
 </body>
