@@ -12,7 +12,7 @@ build/
 coverage/
 .vite/
 local-test/dist/
-static/ui/assets/
+static/ui/
 
 # Logs
 npm-debug.log*

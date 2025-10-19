@@ -17,7 +17,7 @@ cd DubHacks-2025/DEE-Demo
 npm install
 ```
 
-`npm install` pulls dependencies for both the Forge backend and the React UI.
+`npm install` pulls dependencies for the backend resolver and utility scripts.
 
 ## 3. Configure Secrets
 
@@ -36,15 +36,15 @@ forge variables list
 
 You should see `GEMINI_API_KEY` listed for your chosen environment.
 
-## 4. Build the React UI
+## 4. Build the Forge UI
 
-Forge serves the compiled UI from `static/ui/`, so build it before deploying:
+Forge serves static files from `static/ui/`. The build step copies the Obsidian-style prototype (`local-test/index-v2.html`) into that folder:
 
 ```bash
 npm run build
 ```
 
-Expect Vite to report a successful build and generate assets under `static/ui/`.
+You should see log output confirming that `index-v2.html` and `app-v2.js` were copied into `static/ui/`.
 
 ## 5. Lint & Deploy to Forge
 
@@ -78,29 +78,28 @@ forge uninstall --site https://YOUR-SITE.atlassian.net --product jira --environm
 1. Open Jira at `https://YOUR-SITE.atlassian.net`.
 2. Navigate to any project.
 3. Look for **CodeGraph UW** in the left sidebar and open it.
-4. Ensure the **Knowledge Graph**, **Upload Code**, and **Status** tabs render correctly.
+4. Verify that the repository analyzer interface loads (purple header, repo URL input, sidebar file tree, and graph canvas).
 
 ## 8. Smoke Test the Analyzer
 
-1. Switch to the **Upload Code** tab.
-2. Paste a small snippet (e.g., a simple React component).
-3. Enter a filename like `hello-world.jsx`.
-4. Click **Analyze Code**.
-5. After a few seconds the view should switch to **Knowledge Graph** and display the new nodes/edges.
+1. Enter a public GitHub repository URL (the default demo repo works too).
+2. Click **🔍 Analyze Repository**.
+3. Watch the live progress bar as files are fetched and analyzed.
+4. Once complete, explore the interactive graph and file list.
 
 ## 9. Troubleshooting
 
 - **`GEMINI_API_KEY not set`** – Re-run `forge variables set GEMINI_API_KEY your_api_key_here`, then `forge deploy`.
 - **App missing in Jira** – Reinstall with `forge install --upgrade ...` or uninstall/reinstall to refresh permissions.
-- **Graph stays empty** – Use the **Status** tab and click **Ping Resolver**. A healthy response is `{ "ok": true }`.
+- **Graph stays empty** – Confirm the GitHub URL is public, check the browser console for rate-limit errors, and retry.
 - **Backend errors** – Run `forge logs` to tail resolver output.
 - **UI changes not appearing** – Rebuild the UI (`npm run build`) before the next `forge deploy`.
 
 ## 10. Useful Commands Reference
 
 ```bash
-npm run dev              # Vite dev server (frontend only)
-npm run build            # Build UI into static/ui/
+npm run dev              # Serve local-test/index-v2.html on http://localhost:8000/
+npm run build            # Copy index-v2 assets into static/ui/ for Forge
 forge tunnel             # Live backend testing without redeploying
 forge deploy             # Push latest backend + UI bundle
 forge logs               # Tail resolver logs

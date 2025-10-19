@@ -30,13 +30,13 @@ This enhanced version can analyze **entire GitHub repositories** and creates an 
 
 ### How to Use
 
-1. **Start the server:**
+1. **Start the server (from `DEE-Demo/`):**
    ```bash
-   cd /Users/ansonchen/Documents/GitHub/DubHacks-2025/DEE-Demo/local-test
-   python3 -m http.server 8000
+   npm run dev
    ```
+   This serves `local-test/index-v2.html` on <http://localhost:8000/>.
 
-2. **Open in browser:**
+2. **Open in browser (if it doesn't open automatically):**
    ```
    http://localhost:8000/index-v2.html
    ```
@@ -130,10 +130,12 @@ const filesToAnalyze = files.slice(0, 20); // Change 20 to desired number
 
 ### Next Steps
 
-Want to deploy to Forge? The backend resolver already has the same Gemini integration. Just need to:
-1. Add file upload endpoint
-2. Store repository metadata
-3. Deploy with the new UI
+Want to deploy to Forge? Run:
+```bash
+npm run build            # copies this UI into static/ui/
+forge deploy
+forge install --upgrade --site https://YOUR-SITE.atlassian.net --product jira
+```
 
 ### Troubleshooting
 

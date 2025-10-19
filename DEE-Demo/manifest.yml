@@ -23,5 +23,8 @@ permissions:
     - storage:app
   external:
     fetch:
+      client:
+        - address: generativelanguage.googleapis.com
+        - address: api.github.com
       backend:
         - address: generativelanguage.googleapis.com
