@@ -1,10 +1,10 @@
 // CodeGraph Demo (Dev) - Full GitHub Repository Analyzer
 // Gemini API Configuration
-const GEMINI_API_KEY = 'AIzaSyDqUF1H5zH-NhBxYiZjrqQlN3Nnyo9mkZ0';
+const GEMINI_API_KEY = 'GEMINI API KEY';
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
 
 // GitHub configuration
-const GITHUB_TOKEN = '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';
+const GITHUB_TOKEN = 'GITHUB API KEY';
 
 // Graph data
 let graphData = { nodes: [], edges: [] };
@@ -15,6 +15,15 @@ let zoom = null;
 let fileContents = new Map();
 let selectedNode = null;
 let hoveredNode = null;
+
+// Node type filters for legend
+let nodeTypeFilters = {
+  file: true,
+  class: true,
+  function: true,
+  variable: true,
+  import: true
+};
 
 // DOM Elements
 const analyzeBtn = document.getElementById('analyzeBtn');
@@ -37,6 +46,21 @@ function parseGitHubUrl(url) {
     owner: match[1],
     repo: match[2].replace(/\.git$/, '')
   };
+}
+
+// Resolve relative paths to absolute repository paths
+function resolvePath(currentFilePath, relativePath) {
+  const pathParts = currentFilePath.split('/').slice(0, -1); // Get the directory of the current file
+  const relativeParts = relativePath.split('/');
+
+  for (const part of relativeParts) {
+    if (part === '..') {
+      pathParts.pop();
+    } else if (part !== '.') {
+      pathParts.push(part);
+    }
+  }
+  return pathParts.join('/');
 }
 
 // Fetch repository file tree from GitHub
@@ -146,7 +170,7 @@ function addToGraph(filename, analysis) {
     label: analysis.title || filename.split('/').pop(),
     name: analysis.title || filename.split('/').pop(),
     filename: filename,
-    type: analysis.blockType || 'file',
+    type: 'file',
     blockType: analysis.blockType || 'other',
     metadata: {
       purpose: analysis.purpose || '',
@@ -180,14 +204,16 @@ function addToGraph(filename, analysis) {
   // Add internal file dependencies
   if (analysis.dependencies?.internal) {
     analysis.dependencies.internal.forEach(path => {
-      const targetId = `file:${path}`;
+      // Resolve the relative path to a full repository path
+      const targetPath = resolvePath(filename, path);
+      const targetId = `file:${targetPath}`;
 
       if (!graphData.nodes.find(n => n.id === targetId)) {
         graphData.nodes.push({
           id: targetId,
-          label: path.split('/').pop(),
-          name: path.split('/').pop(),
-          filename: path,
+          label: targetPath.split('/').pop(),
+          name: targetPath.split('/').pop(),
+          filename: targetPath,
           type: 'file'
         });
       }
@@ -315,6 +341,20 @@ function renderGraph() {
     return;
   }
 
+  // Filter nodes based on nodeTypeFilters
+  const filteredNodes = graphData.nodes.filter(n => nodeTypeFilters[n.type]);
+  const visibleNodeIds = new Set(filteredNodes.map(n => n.id));
+  const filteredEdges = graphData.edges.filter(e =>
+    visibleNodeIds.has(e.source.id || e.source) && visibleNodeIds.has(e.target.id || e.target)
+  );
+
+  if (filteredNodes.length === 0) {
+    console.log('No visible nodes after filtering');
+    g.selectAll('*').remove();
+    updateStats();
+    return;
+  }
+
   // Clear previous content
   g.selectAll('*').remove();
 
@@ -327,9 +367,9 @@ function renderGraph() {
     import: '#FF006E'
   };
 
-  // Create a copy of nodes and edges for D3
-  const nodes = graphData.nodes.map(n => ({ ...n }));
-  const edges = graphData.edges.map(e => ({ ...e }));
+  // Create a copy of filtered nodes and edges for D3
+  const nodes = filteredNodes.map(n => ({ ...n }));
+  const edges = filteredEdges.map(e => ({ ...e }));
 
   // Create simulation
   simulation = d3.forceSimulation(nodes)
@@ -644,7 +684,20 @@ async function analyzeRepository() {
 
   } catch (error) {
     console.error('Analysis error:', error);
-    showMessage(`Error: ${error.message}`, 'error');
+    let errorMsg = error.message;
+    
+    // Provide more helpful error messages
+    if (errorMsg.includes('Failed to fetch') || errorMsg.includes('NetworkError')) {
+      errorMsg = 'Network error: Unable to connect to GitHub API. Please check your internet connection or try again later.';
+    } else if (errorMsg.includes('403')) {
+      errorMsg = 'GitHub API rate limit exceeded. Please try again in a few minutes.';
+    } else if (errorMsg.includes('404')) {
+      errorMsg = 'Repository not found. Please check the URL and branch name.';
+    } else if (errorMsg.includes('401')) {
+      errorMsg = 'Authentication failed. The GitHub token may be invalid.';
+    }
+    
+    showMessage(`Error: ${errorMsg}`, 'error');
   } finally {
     analyzeBtn.disabled = false;
   }
@@ -662,6 +715,58 @@ function clearGraph() {
   renderGraph();
   fileListEl.innerHTML = '';
   showMessage('Graph cleared', 'success');
+}
+
+// Toggle node type visibility
+function toggleNodeType(type) {
+  nodeTypeFilters[type] = !nodeTypeFilters[type];
+  updateLegendUI();
+  renderGraph();
+}
+
+// Update legend UI to reflect filter state
+function updateLegendUI() {
+  const legendItems = document.querySelectorAll('.legend-item');
+  const nodeTypes = ['file', 'class', 'function', 'variable', 'import'];
+  
+  legendItems.forEach((item, index) => {
+    const type = nodeTypes[index];
+    if (nodeTypeFilters[type]) {
+      item.style.opacity = '1';
+      item.style.cursor = 'pointer';
+    } else {
+      item.style.opacity = '0.3';
+      item.style.cursor = 'pointer';
+    }
+  });
+}
+
+// Initialize legend interactivity
+function initLegend() {
+  const legendItems = document.querySelectorAll('.legend-item');
+  const nodeTypes = ['file', 'class', 'function', 'variable', 'import'];
+  
+  legendItems.forEach((item, index) => {
+    const type = nodeTypes[index];
+    item.style.cursor = 'pointer';
+    item.style.transition = 'all 0.2s ease';
+    
+    item.addEventListener('click', () => {
+      toggleNodeType(type);
+    });
+    
+    item.addEventListener('mouseenter', () => {
+      if (nodeTypeFilters[type]) {
+        item.style.transform = 'translateX(4px)';
+      }
+    });
+    
+    item.addEventListener('mouseleave', () => {
+      item.style.transform = 'translateX(0)';
+    });
+  });
+  
+  updateLegendUI();
 }
 
 // Event listeners
@@ -683,5 +788,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   console.log('D3 library loaded successfully');
   initGraph();
+  initLegend();
   showMessage('Ready to analyze GitHub repositories (up to 50 files)', 'info');
 });

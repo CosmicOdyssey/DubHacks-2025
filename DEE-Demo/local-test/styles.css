@@ -309,14 +309,15 @@ button:disabled {
   position: absolute;
   top: 20px;
   left: 20px;
-  background: rgba(10, 10, 20, 0.8);
+  background: rgba(10, 10, 20, 0.95);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(132, 0, 255, 0.3);
   border-radius: 12px;
   padding: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   animation: slideInLeft 0.6s ease-out;
-  z-index: 100;
+  z-index: 1000;
+  pointer-events: auto;
 }
 
 @keyframes slideInLeft {
@@ -363,7 +364,7 @@ button:disabled {
   position: absolute;
   top: 20px;
   right: 20px;
-  background: rgba(10, 10, 20, 0.8);
+  background: rgba(10, 10, 20, 0.95);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(132, 0, 255, 0.3);
   border-radius: 12px;
@@ -373,7 +374,8 @@ button:disabled {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.6);
   text-align: center;
-  z-index: 100;
+  z-index: 1000;
+  pointer-events: auto;
 }
 
 @keyframes slideInRight {

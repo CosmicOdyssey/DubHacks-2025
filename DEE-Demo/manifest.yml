@@ -8,26 +8,11 @@ modules:
     - key: codegraph-demo-resolver
       handler: backend/resolvers.handler
   jira:projectPage:
-<<<<<<< Updated upstream
-    - key: dee-demo-hello-world-project-page
-      title: DEE Demo
-      resource: ui
-      resolver:
-        function: main-resolver
-  jira:issueContext:
-    - key: dee-demo-issue-panel
-      title: DEE Impact
-      label: DEE Impact
-      description: Compact per-issue DEE panel
-      icon: https://developer.atlassian.com/platform/forge/images/issue-panel-icon.svg
-      resource: ui
-=======
     - key: codegraph-demo-project-page
       title: CodeGraph Demo (Dev)
       resource: ui
       resolver:
         function: codegraph-demo-resolver
->>>>>>> Stashed changes
 
 resources:
   - key: ui
@@ -40,5 +25,6 @@ permissions:
     - read:jira-user
   external:
     fetch:
-      backend:
-        - address: https://dee-api.example.com
+      client:
+        - 'api.github.com'
+        - 'generativelanguage.googleapis.com'

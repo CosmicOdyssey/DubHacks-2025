@@ -19,7 +19,6 @@ export default function App() {
       .finally(() => setLoading(false))
   }, [epoch])
 
-<<<<<<< Updated upstream
   const filteredGraph = useMemo(() => {
     let g = graph
     if (filters.type !== 'all') {
@@ -30,51 +29,6 @@ export default function App() {
     }
     if (filters.milestoneOnly) {
       g = { ...g, nodes: g.nodes.filter((n) => (n.labels || []).includes('milestone') || n.type === 'event') }
-=======
-  async function loadGraph() {
-    setLoading(true);
-    setError(null);
-    try {
-  const res = await invoke('codegraph-demo-resolver', {
-        path: '/graph',
-        payload: { projectId: 'default' }
-      });
-      if (res && res.ok) {
-        setGraph(res.graph);
-      } else {
-        console.warn('Graph load returned:', res);
-      }
-    } catch (e) {
-      console.error('Failed to load graph:', e);
-      setError('Failed to load graph: ' + e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function ping() {
-    setError(null);
-    try {
-  const res = await invoke('codegraph-demo-resolver', { path: '/ping' });
-      setResult(res);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-
-  async function clearGraph() {
-    if (!window.confirm('Are you sure you want to clear the entire graph?')) return;
-
-    setError(null);
-    try {
-  await invoke('codegraph-demo-resolver', {
-        path: '/clear',
-        payload: { projectId: 'default' }
-      });
-      await loadGraph();
-    } catch (e) {
-      setError(String(e));
->>>>>>> Stashed changes
     }
     return g
   }, [graph, filters])
