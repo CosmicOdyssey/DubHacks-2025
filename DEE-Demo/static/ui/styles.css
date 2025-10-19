@@ -303,14 +303,61 @@ button:disabled {
   margin-bottom: 8px;
   color: #42526E;
   font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.legend-item:last-of-type {
+  margin-bottom: 0;
+}
+
+.legend-item--inactive {
+  opacity: 0.4;
+}
+
+.legend-checkbox {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #0052CC;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.legend-checkbox:checked {
+  background: #0052CC;
+}
+
+.legend-checkbox:checked::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: #FFFFFF;
+  border-radius: 50%;
+}
+
+.legend-checkbox:focus-visible {
+  outline: 2px solid rgba(0, 82, 204, 0.4);
+  outline-offset: 2px;
 }
 
 .legend-dot {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  box-shadow: 0 0 8px rgba(0, 82, 204, 0.4);
+  box-shadow: 0 0 8px rgba(0, 82, 204, 0.3);
 }
+
+.legend-dot.file { background: #0052CC; }
+.legend-dot.class { background: #2684FF; }
+.legend-dot.function { background: #36B37E; }
+.legend-dot.variable { background: #FFAB00; }
+.legend-dot.import { background: #FF5630; }
 
 .graph-controls {
   position: absolute;

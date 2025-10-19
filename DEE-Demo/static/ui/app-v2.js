@@ -28,8 +28,19 @@ let nodeTypeFilters = {
   class: true,
   function: true,
   variable: true,
-  import: true
+  import: true,
+  other: true
 };
+
+function normalizeNodeType(value) {
+  if (value === null || value === undefined) return 'other';
+  if (typeof value === 'string') return value.trim().toLowerCase();
+  if (typeof value === 'object') {
+    if (value.type) return normalizeNodeType(value.type);
+    if (value.kind) return normalizeNodeType(value.kind);
+  }
+  return String(value).trim().toLowerCase() || 'other';
+}
 
 // DOM Elements
 const analyzeBtn = document.getElementById('analyzeBtn');
@@ -182,7 +193,7 @@ function addToGraph(filename, analysis) {
     label: analysis.title || filename.split('/').pop(),
     name: analysis.title || filename.split('/').pop(),
     filename: filename,
-    type: 'file',
+    type: normalizeNodeType('file'),
     blockType: analysis.blockType || 'other',
     metadata: {
       purpose: analysis.purpose || '',
@@ -204,7 +215,7 @@ function addToGraph(filename, analysis) {
           id: libId,
           label: lib,
           name: lib,
-          type: 'import'
+          type: normalizeNodeType('import')
         });
       }
       graphData.edges.push({
@@ -228,7 +239,7 @@ function addToGraph(filename, analysis) {
           label: targetPath.split('/').pop(),
           name: targetPath.split('/').pop(),
           filename: targetPath,
-          type: 'file'
+          type: normalizeNodeType('file')
         });
       }
 
@@ -249,7 +260,7 @@ function addToGraph(filename, analysis) {
           id: apiId,
           label: api,
           name: api,
-          type: 'class'
+          type: normalizeNodeType('class')
         });
       }
       graphData.edges.push({
@@ -619,8 +630,25 @@ function renderGraph() {
     return;
   }
 
-  // Filter nodes based on nodeTypeFilters
-  const filteredNodes = graphData.nodes.filter(n => nodeTypeFilters[n.type]);
+  const getNodeType = (node) => {
+    if (!node) return 'other';
+    const fromNode = node.type ?? node.blockType ?? node.metadata?.type;
+    const fromData = node.data?.type ?? node.data?.blockType ?? node.data?.metadata?.type;
+    return normalizeNodeType(fromData ?? fromNode);
+  };
+
+  // Filter nodes based on nodeTypeFilters (default to visible when undefined)
+  const normalizedNodes = graphData.nodes.map(n => ({ ...n, type: getNodeType(n) }));
+  graphData.nodes = normalizedNodes.map(n => ({ ...n }));
+
+  const filteredNodes = normalizedNodes
+    .filter(n => {
+      if (nodeTypeFilters.hasOwnProperty(n.type)) {
+        return nodeTypeFilters[n.type];
+      }
+      return true;
+    });
+
   const visibleNodeIds = new Set(filteredNodes.map(n => n.id));
   const filteredEdges = graphData.edges.filter(e =>
     visibleNodeIds.has(e.source.id || e.source) && visibleNodeIds.has(e.target.id || e.target)
@@ -642,7 +670,8 @@ function renderGraph() {
     class: '#2684FF',
     function: '#36B37E',
     variable: '#FFAB00',
-    import: '#FF5630'
+    import: '#FF5630',
+    other: '#6554C0'
   };
 
   // Create a copy of filtered nodes and edges for D3
@@ -1052,55 +1081,37 @@ function clearGraph() {
   showMessage('Graph cleared', 'success');
 }
 
-// Toggle node type visibility
-function toggleNodeType(type) {
-  nodeTypeFilters[type] = !nodeTypeFilters[type];
-  updateLegendUI();
-  renderGraph();
-}
-
 // Update legend UI to reflect filter state
 function updateLegendUI() {
-  const legendItems = document.querySelectorAll('.legend-item');
-  const nodeTypes = ['file', 'class', 'function', 'variable', 'import'];
-  
-  legendItems.forEach((item, index) => {
-    const type = nodeTypes[index];
-    if (nodeTypeFilters[type]) {
-      item.style.opacity = '1';
-      item.style.cursor = 'pointer';
-    } else {
-      item.style.opacity = '0.3';
-      item.style.cursor = 'pointer';
+  const checkboxes = document.querySelectorAll('.legend-checkbox');
+
+  checkboxes.forEach((checkbox) => {
+    const type = checkbox.dataset.nodeType;
+    const item = checkbox.closest('.legend-item');
+    const enabled = !!nodeTypeFilters[type];
+
+    checkbox.checked = enabled;
+    if (item) {
+      item.classList.toggle('legend-item--inactive', !enabled);
     }
   });
 }
 
 // Initialize legend interactivity
 function initLegend() {
-  const legendItems = document.querySelectorAll('.legend-item');
-  const nodeTypes = ['file', 'class', 'function', 'variable', 'import'];
-  
-  legendItems.forEach((item, index) => {
-    const type = nodeTypes[index];
-    item.style.cursor = 'pointer';
-    item.style.transition = 'all 0.2s ease';
-    
-    item.addEventListener('click', () => {
-      toggleNodeType(type);
-    });
-    
-    item.addEventListener('mouseenter', () => {
-      if (nodeTypeFilters[type]) {
-        item.style.transform = 'translateX(4px)';
-      }
-    });
-    
-    item.addEventListener('mouseleave', () => {
-      item.style.transform = 'translateX(0)';
+  const checkboxes = document.querySelectorAll('.legend-checkbox');
+
+  checkboxes.forEach((checkbox) => {
+    const type = checkbox.dataset.nodeType;
+    checkbox.checked = !!nodeTypeFilters[type];
+
+    checkbox.addEventListener('change', () => {
+      nodeTypeFilters[type] = checkbox.checked;
+      updateLegendUI();
+      renderGraph();
     });
   });
-  
+
   updateLegendUI();
 }
 
