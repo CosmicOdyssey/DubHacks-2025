@@ -473,3 +473,20 @@ button:disabled {
 .code-preview::-webkit-scrollbar-thumb:hover {
   background: rgba(132, 0, 255, 0.7);
 }
+
+/* Rovo button states - CSP compliant */
+.rovo-prompt-btn {
+  transition: transform 0.2s ease, background 0.3s ease;
+}
+
+.rovo-prompt-btn:hover {
+  transform: translateY(-2px);
+}
+
+.rovo-prompt-btn.copied {
+  background: linear-gradient(135deg, #00FF88 0%, #00D4FF 100%) !important;
+}
+
+.rovo-prompt-btn.error {
+  background: linear-gradient(135deg, #FF006E 0%, #FFB800 100%) !important;
+}

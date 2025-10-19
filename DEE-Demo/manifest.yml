@@ -6,13 +6,81 @@ app:
 modules:
   function:
     - key: codegraph-demo-resolver
-      handler: backend/resolvers.handler
+      handler: resolvers.handler
+    - key: rovo-analyze
+      handler: rovo-agent.analyzeNode
+    - key: rovo-tasks
+      handler: rovo-agent.createTasks
+    - key: rovo-improve
+      handler: rovo-agent.suggestImprovements
+      
   jira:projectPage:
     - key: codegraph-demo-project-page
       title: CodeGraph Demo (Dev)
       resource: ui
       resolver:
         function: codegraph-demo-resolver
+        
+  rovo:agent:
+    - key: codegraph-agent
+      name: CodeGraph AI Assistant
+      description: AI agent that analyzes code repositories and helps create tasks based on code structure and dependencies
+      prompt: |
+        You are a CodeGraph AI Assistant. You help developers understand code architecture and create actionable tasks.
+        When a user provides a node ID (format: file:path/to/file.js), you can:
+        - Analyze the file's purpose, complexity, dependencies, and exports
+        - Identify relationships with other code
+        - Suggest refactoring or improvement tasks
+        - Create Jira task recommendations for code improvements
+        
+        Always ask for the node ID if the user hasn't provided it yet.
+        Use the analyze-node action to get detailed information about a code file.
+        Use the create-tasks action to generate actionable Jira task suggestions.
+        Use the suggest-improvements action to recommend code refactoring opportunities.
+      conversationStarters:
+        - Analyze a code node and explain its dependencies
+        - Suggest improvements for a code file
+        - Create follow-up tasks from code analysis
+        - What does this code node do?
+      actions:
+        - analyze-node
+        - create-tasks
+        - suggest-improvements
+        
+  action:
+    - key: analyze-node
+      name: Analyze Code Node
+      function: rovo-analyze
+      actionVerb: GET
+      description: Get detailed insights about a code file including its purpose, complexity, dependencies, exports, and related concepts
+      inputs:
+        nodeId:
+          title: Node ID
+          type: string
+          required: true
+          description: The ID of the code node to analyze
+    - key: create-tasks
+      name: Create Tasks
+      function: rovo-tasks
+      actionVerb: CREATE
+      description: Generate Jira task suggestions based on code analysis including refactoring, documentation, testing, and security improvements
+      inputs:
+        nodeId:
+          title: Node ID
+          type: string
+          required: true
+          description: The ID of the code node to create tasks for
+    - key: suggest-improvements
+      name: Suggest Improvements
+      function: rovo-improve
+      actionVerb: GET
+      description: Recommend code improvements and refactoring opportunities including architecture, performance, and documentation suggestions
+      inputs:
+        nodeId:
+          title: Node ID
+          type: string
+          required: true
+          description: The ID of the code node to get improvement suggestions for
 
 resources:
   - key: ui
@@ -23,6 +91,8 @@ permissions:
     - storage:app
     - read:jira-work
     - read:jira-user
+    - write:jira-work
+    - read:chat:rovo
   external:
     fetch:
       client:

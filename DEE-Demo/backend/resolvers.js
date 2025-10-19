@@ -17,6 +17,19 @@ export const handler = async (req) => {
     const mock = e <= 1 ? graph1 : e === 2 ? graph2 : graph3
     return { body: mock }
   }
+  
+  // Store graph data for Rovo agent access
+  if (path === '/saveGraph') {
+    const { graphData } = req;
+    await storage.set('graphData', graphData);
+    return { body: { ok: true, message: 'Graph data saved' } };
+  }
+  
+  // Get graph data for Rovo agent
+  if (path === '/getGraph') {
+    const graphData = await storage.get('graphData') || { nodes: [], edges: [] };
+    return { body: graphData };
+  }
 
   const feedMatch = path.match(/^\/node\/(.+)\/feed$/)
   if (feedMatch) {

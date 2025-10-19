@@ -1,10 +1,10 @@
 // CodeGraph Demo (Dev) - Full GitHub Repository Analyzer
 // Gemini API Configuration
-const GEMINI_API_KEY = 'gemini api key';
+const GEMINI_API_KEY = 'gemini api key here';
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
 
 // GitHub configuration
-const GITHUB_TOKEN = 'git hub token';
+const GITHUB_TOKEN = 'github api key here';
 
 // Graph data
 let graphData = { nodes: [], edges: [] };
@@ -15,6 +15,7 @@ let zoom = null;
 let fileContents = new Map();
 let selectedNode = null;
 let hoveredNode = null;
+let lastRenderedNodeCount = 0; // Track how many nodes were in the last render
 
 // Node type filters for legend
 let nodeTypeFilters = {
@@ -425,8 +426,8 @@ function initDotGrid() {
         if (dist < config.proximity) {
           const pushX = (dot.cx - pointer.x) + pointer.vx * 0.002;
           const pushY = (dot.cy - pointer.y) + pointer.vy * 0.002;
-          dot.vx = pushX * 0.015;
-          dot.vy = pushY * 0.015;
+          dot.vx = pushX * 0.04;
+          dot.vy = pushY * 0.04;
           dot.targetX = 0;
           dot.targetY = 0;
           dot.returning = true;
@@ -447,8 +448,8 @@ function initDotGrid() {
         const falloff = Math.max(0, 1 - dist / config.shockRadius);
         const pushX = (dot.cx - cx) * config.shockStrength * falloff;
         const pushY = (dot.cy - cy) * config.shockStrength * falloff;
-        dot.vx = pushX * 0.03;
-        dot.vy = pushY * 0.03;
+        dot.vx = pushX * 0.07;
+        dot.vy = pushY * 0.07;
         dot.targetX = 0;
         dot.targetY = 0;
         dot.returning = true;
@@ -643,13 +644,38 @@ function renderGraph() {
   const nodes = filteredNodes.map(n => ({ ...n }));
   const edges = filteredEdges.map(e => ({ ...e }));
 
+  // --- START: New Non-Linear Scaling Logic ---
+
   // Calculate PageRank for each node
   const pageRankMap = calculatePageRank(nodes, edges);
+  let minRank = Infinity, maxRank = -Infinity;
 
-  // Add PageRank to nodes
   nodes.forEach(n => {
-    n.pageRank = pageRankMap.get(n.id) || 0;
+    const rank = pageRankMap.get(n.id) || 0;
+    n.pageRank = rank;
+    if (rank < minRank) minRank = rank;
+    if (rank > maxRank) maxRank = rank;
   });
+
+  // Function to scale the size non-linearly
+  const calculateRadius = (d) => {
+    const baseSize = d.type === 'file' ? 20 : d.type === 'class' ? 16 : 14;
+    
+    if (maxRank === minRank) return baseSize; // Avoid division by zero
+
+    // Normalize PageRank from 0 to 1
+    const normalizedRank = (d.pageRank - minRank) / (maxRank - minRank);
+    
+    // Apply a power scale to exaggerate higher values. Exponent > 1.
+    const powerScaledRank = Math.pow(normalizedRank, 2); 
+    
+    // Define max bonus size and apply it
+    const maxBonus = 40; // Max additional radius for the most important node
+    const pageRankBonus = powerScaledRank * maxBonus;
+    
+    return baseSize + pageRankBonus;
+  };
+  // --- END: New Non-Linear Scaling Logic ---
 
   // Create simulation
   simulation = d3.forceSimulation(nodes)
@@ -658,12 +684,7 @@ function renderGraph() {
       .distance(300))
     .force('charge', d3.forceManyBody().strength(-200))
     .force('center', d3.forceCenter(0, 0))
-    .force('collision', d3.forceCollide().radius(d => {
-      // Base size + PageRank-based size
-      const baseSize = d.type === 'file' ? 24 : d.type === 'class' ? 20 : 18;
-      const pageRankBonus = (d.pageRank || 0) * 800; // Scale PageRank (typically 0.0-0.1)
-      return baseSize + pageRankBonus + 5; // +5 for spacing
-    }));
+    .force('collision', d3.forceCollide().radius(d => calculateRadius(d) + 10)); // +10 for spacing
 
   // Create edges
   const link = g.append('g')
@@ -687,18 +708,12 @@ function renderGraph() {
     .data(nodes)
     .join('g')
     .attr('cursor', 'pointer')
-    .style('opacity', 0)
+    .style('opacity', (d, i) => i < lastRenderedNodeCount ? 1 : 0) // Only fade in new nodes
     .call(drag(simulation));
 
   // Add circles to nodes
   node.append('circle')
-    .attr('r', d => {
-      // Base size by type
-      const baseSize = d.type === 'file' ? 24 : d.type === 'class' ? 20 : 18;
-      // Add PageRank-based scaling
-      const pageRankBonus = (d.pageRank || 0) * 800; // Scale PageRank (typically 0.0-0.1)
-      return baseSize + pageRankBonus;
-    })
+    .attr('r', d => calculateRadius(d))
     .attr('fill', d => nodeColors[d.type] || '#8400FF')
     .attr('stroke', 'rgba(255, 255, 255, 0.3)')
     .attr('stroke-width', 2)
@@ -706,11 +721,7 @@ function renderGraph() {
 
   // Add inner glow circle
   node.append('circle')
-    .attr('r', d => {
-      const baseSize = d.type === 'file' ? 14 : d.type === 'class' ? 12 : 10;
-      const pageRankBonus = (d.pageRank || 0) * 560; // Proportionally smaller
-      return baseSize + pageRankBonus;
-    })
+    .attr('r', d => calculateRadius(d) * 0.6)
     .attr('fill', 'rgba(255, 255, 255, 0.2)')
     .style('pointer-events', 'none');
 
@@ -726,11 +737,15 @@ function renderGraph() {
     .style('pointer-events', 'none')
     .style('text-shadow', '0 2px 8px rgba(0, 0, 0, 0.8)');
 
-  // Animate nodes in
-  node.transition()
+  // Animate only new nodes in
+  node.filter((d, i) => i >= lastRenderedNodeCount)
+    .transition()
     .duration(600)
     .delay((d, i) => i * 30)
     .style('opacity', 1);
+  
+  // Update the count for next render
+  lastRenderedNodeCount = nodes.length;
 
   // Add hover effects
   node.on('mouseenter', function(event, d) {
@@ -740,11 +755,7 @@ function renderGraph() {
     d3.select(this).select('circle')
       .transition()
       .duration(200)
-      .attr('r', d => {
-        const baseSize = d.type === 'file' ? 30 : d.type === 'class' ? 26 : 24;
-        const pageRankBonus = (d.pageRank || 0) * 600;
-        return baseSize + pageRankBonus;
-      })
+      .attr('r', d => calculateRadius(d) + 6) // Add a fixed amount for hover
       .attr('stroke-width', 4);
 
     // Highlight connected edges
@@ -764,11 +775,7 @@ function renderGraph() {
     d3.select(this).select('circle')
       .transition()
       .duration(200)
-      .attr('r', d => {
-        const baseSize = d.type === 'file' ? 24 : d.type === 'class' ? 20 : 18;
-        const pageRankBonus = (d.pageRank || 0) * 800;
-        return baseSize + pageRankBonus;
-      })
+      .attr('r', d => calculateRadius(d)) // Return to original calculated radius
       .attr('stroke-width', 2);
 
     link.attr('stroke', 'rgba(132, 0, 255, 0.4)')
@@ -826,6 +833,184 @@ function renderGraph() {
   });
 
   updateStats();
+}
+
+// Ask Rovo AI about the selected node
+async function askRovoAboutNode(actionType) {
+  if (!selectedNode) {
+    console.error('No node selected');
+    return;
+  }
+
+  const rovoResponseDiv = document.getElementById('rovoResponse');
+  rovoResponseDiv.style.display = 'block';
+  rovoResponseDiv.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.7);">🤔 Thinking...</div>';
+
+  try {
+    // Map action type to Rovo action name
+    const actionMap = {
+      'analyze': 'analyze-node',
+      'tasks': 'create-tasks',
+      'improve': 'suggest-improvements'
+    };
+
+    const action = actionMap[actionType];
+    
+    // Prepare node data for Rovo
+    const nodeData = {
+      id: selectedNode.id,
+      label: selectedNode.label || selectedNode.name || selectedNode.id,
+      type: selectedNode.type,
+      blockType: selectedNode.blockType,
+      metadata: selectedNode.metadata || {},
+      filename: selectedNode.filename || ''
+    };
+
+    console.log('Calling Rovo with action:', action, 'nodeData:', nodeData);
+
+    // Use Atlassian Connect API to invoke the backend resolver
+    const result = await new Promise((resolve, reject) => {
+      AP.request({
+        url: '/rovo-agent',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+          path: '/rovo-agent',
+          action: action,
+          nodeData: nodeData
+        }),
+        success: function(response) {
+          console.log('Rovo response:', response);
+          try {
+            const data = typeof response === 'string' ? JSON.parse(response) : response;
+            resolve(data);
+          } catch (e) {
+            console.error('Failed to parse response:', e);
+            reject(new Error('Invalid response format'));
+          }
+        },
+        error: function(xhr, statusText, errorThrown) {
+          console.error('Rovo request failed:', statusText, errorThrown);
+          reject(new Error(`Rovo request failed: ${statusText || errorThrown || 'Unknown error'}`));
+        }
+      });
+    });
+
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    
+    // Format and display the response
+    let formattedResponse = '';
+    
+    if (actionType === 'analyze') {
+      formattedResponse = formatAnalysisResponse(result);
+    } else if (actionType === 'tasks') {
+      formattedResponse = formatTasksResponse(result);
+    } else if (actionType === 'improve') {
+      formattedResponse = formatImprovementsResponse(result);
+    }
+
+    rovoResponseDiv.innerHTML = formattedResponse;
+  } catch (error) {
+    console.error('Error calling Rovo:', error);
+    rovoResponseDiv.innerHTML = `<div style="color: #FF006E;">❌ Error: ${error.message}</div>`;
+  }
+}
+
+// Save graph data to Forge storage for Rovo actions
+async function saveGraphToForge(graphData) {
+  try {
+    console.log('Saving graph data to Forge storage...');
+    await new Promise((resolve, reject) => {
+      AP.request({
+        url: '/saveGraph',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+          path: '/saveGraph',
+          graphData: graphData
+        }),
+        success: function(response) {
+          console.log('Graph data saved successfully:', response);
+          resolve(response);
+        },
+        error: function(xhr, statusText, errorThrown) {
+          console.error('Failed to save graph data:', statusText, errorThrown);
+          reject(new Error(`Failed to save graph data: ${statusText || errorThrown}`));
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Error saving graph data:', error);
+    // Don't throw - this is not critical for the main flow
+  }
+}
+
+// Format analysis response
+function formatAnalysisResponse(data) {
+  if (!data) return '<div style="color: rgba(255,255,255,0.7);">No analysis available</div>';
+  
+  let html = '<div style="color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 8px;">📊 Code Analysis</div>';
+  
+  if (data.purpose) {
+    html += `<div style="margin-bottom: 6px;"><strong>Purpose:</strong> ${data.purpose}</div>`;
+  }
+  if (data.complexity) {
+    html += `<div style="margin-bottom: 6px;"><strong>Complexity:</strong> ${data.complexity}</div>`;
+  }
+  if (data.dependencies && data.dependencies.length > 0) {
+    html += `<div style="margin-bottom: 6px;"><strong>Dependencies:</strong> ${data.dependencies.join(', ')}</div>`;
+  }
+  if (data.exports && data.exports.length > 0) {
+    html += `<div style="margin-bottom: 6px;"><strong>Exports:</strong> ${data.exports.join(', ')}</div>`;
+  }
+  if (data.relatedConcepts && data.relatedConcepts.length > 0) {
+    html += `<div style="margin-bottom: 6px;"><strong>Related Concepts:</strong> ${data.relatedConcepts.join(', ')}</div>`;
+  }
+  
+  return html;
+}
+
+// Format tasks response
+function formatTasksResponse(data) {
+  if (!data || !data.tasks || data.tasks.length === 0) {
+    return '<div style="color: rgba(255,255,255,0.7);">No tasks generated</div>';
+  }
+  
+  let html = '<div style="color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 8px;">📝 Suggested Tasks</div>';
+  html += '<ul style="margin: 0; padding-left: 20px;">';
+  
+  data.tasks.forEach(task => {
+    html += `<li style="margin-bottom: 6px;">
+      <strong>${task.title}</strong><br>
+      <span style="font-size: 11px; color: rgba(255,255,255,0.7);">${task.description}</span>
+      <br><span style="font-size: 11px; color: #FFB800;">Priority: ${task.priority}</span>
+    </li>`;
+  });
+  
+  html += '</ul>';
+  return html;
+}
+
+// Format improvements response
+function formatImprovementsResponse(data) {
+  if (!data || !data.suggestions || data.suggestions.length === 0) {
+    return '<div style="color: rgba(255,255,255,0.7);">No improvements suggested</div>';
+  }
+  
+  let html = '<div style="color: rgba(255,255,255,0.9); font-weight: 600; margin-bottom: 8px;">💡 Improvement Suggestions</div>';
+  html += '<ul style="margin: 0; padding-left: 20px;">';
+  
+  data.suggestions.forEach(suggestion => {
+    html += `<li style="margin-bottom: 6px;">
+      <strong>${suggestion.category}</strong>: ${suggestion.suggestion}
+      ${suggestion.impact ? `<br><span style="font-size: 11px; color: #00FF88;">Impact: ${suggestion.impact}</span>` : ''}
+    </li>`;
+  });
+  
+  html += '</ul>';
+  return html;
 }
 
 // Update node info panel
@@ -891,6 +1076,67 @@ function updateNodeInfo() {
       </div>
     `;
   }
+  
+  // Rovo Actions
+  const rovoActionsHTML = `
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
+      <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px; color: rgba(255,255,255,0.9);">
+        🤖 Ask Rovo AI
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button onclick="askRovoAboutNode('analyze')" style="
+          padding: 6px 12px;
+          background: linear-gradient(135deg, #8400FF 0%, #00D4FF 100%);
+          border: none;
+          border-radius: 4px;
+          color: white;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: transform 0.2s;
+        " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+          📊 Analyze
+        </button>
+        <button onclick="askRovoAboutNode('tasks')" style="
+          padding: 6px 12px;
+          background: linear-gradient(135deg, #00FF88 0%, #00D4FF 100%);
+          border: none;
+          border-radius: 4px;
+          color: white;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: transform 0.2s;
+        " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+          📝 Create Tasks
+        </button>
+        <button onclick="askRovoAboutNode('improve')" style="
+          padding: 6px 12px;
+          background: linear-gradient(135deg, #FFB800 0%, #FF006E 100%);
+          border: none;
+          border-radius: 4px;
+          color: white;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: transform 0.2s;
+        " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+          💡 Suggest Improvements
+        </button>
+      </div>
+      <div id="rovoResponse" style="
+        margin-top: 12px;
+        padding: 12px;
+        background: rgba(132, 0, 255, 0.1);
+        border-radius: 6px;
+        font-size: 12px;
+        line-height: 1.6;
+        display: none;
+        max-height: 300px;
+        overflow-y: auto;
+      "></div>
+    </div>
+  `;
 
   nodeDetailsDiv.innerHTML = `
     <div class="node-type" style="color: ${color};">
@@ -901,6 +1147,7 @@ function updateNodeInfo() {
     </div>
     ${metadataHTML}
     ${codePreviewHTML}
+    ${rovoActionsHTML}
   `;
 
   nodeDetailsDiv.style.display = 'block';
@@ -987,6 +1234,9 @@ async function analyzeRepository() {
         if (analysis) {
           addToGraph(file.path, analysis);
           console.log(`Added to graph. Total nodes: ${graphData.nodes.length}`);
+          
+          // Render graph after each file to show progressive updates
+          renderGraph();
         }
       } catch (e) {
         console.error(`Failed to analyze ${file.path}:`, e);
@@ -1000,6 +1250,9 @@ async function analyzeRepository() {
 
     renderGraph();
     showMessage(`Successfully analyzed ${analyzed} files! Found ${graphData.nodes.length} nodes and ${graphData.edges.length} connections.`, 'success');
+    
+    // Save graph data to Forge storage for Rovo actions
+    await saveGraphToForge(graphData);
 
   } catch (error) {
     console.error('Analysis error:', error);
@@ -1028,6 +1281,7 @@ function clearGraph() {
   fileContents.clear();
   selectedNode = null;
   hoveredNode = null;
+  lastRenderedNodeCount = 0; // Reset animation counter
   if (simulation) {
     simulation.stop();
   }

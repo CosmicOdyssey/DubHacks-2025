@@ -1,10 +1,10 @@
-// CodeGraph Demo (Dev) - Full GitHub Repository Analyzer
+﻿// CodeGraph Demo (Dev) - Full GitHub Repository Analyzer
 // Gemini API Configuration
-const GEMINI_API_KEY = 'gemini api key';
+const GEMINI_API_KEY = 'gemini api key here';
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
 
 // GitHub configuration
-const GITHUB_TOKEN = 'git hub token';
+const GITHUB_TOKEN = 'github api key here';
 
 // Graph data
 let graphData = { nodes: [], edges: [] };
@@ -15,6 +15,7 @@ let zoom = null;
 let fileContents = new Map();
 let selectedNode = null;
 let hoveredNode = null;
+let lastRenderedNodeCount = 0; // Track how many nodes were in the last render
 
 // Node type filters for legend
 let nodeTypeFilters = {
@@ -643,13 +644,38 @@ function renderGraph() {
   const nodes = filteredNodes.map(n => ({ ...n }));
   const edges = filteredEdges.map(e => ({ ...e }));
 
+  // --- START: New Non-Linear Scaling Logic ---
+
   // Calculate PageRank for each node
   const pageRankMap = calculatePageRank(nodes, edges);
+  let minRank = Infinity, maxRank = -Infinity;
 
-  // Add PageRank to nodes
   nodes.forEach(n => {
-    n.pageRank = pageRankMap.get(n.id) || 0;
+    const rank = pageRankMap.get(n.id) || 0;
+    n.pageRank = rank;
+    if (rank < minRank) minRank = rank;
+    if (rank > maxRank) maxRank = rank;
   });
+
+  // Function to scale the size non-linearly
+  const calculateRadius = (d) => {
+    const baseSize = d.type === 'file' ? 20 : d.type === 'class' ? 16 : 14;
+    
+    if (maxRank === minRank) return baseSize; // Avoid division by zero
+
+    // Normalize PageRank from 0 to 1
+    const normalizedRank = (d.pageRank - minRank) / (maxRank - minRank);
+    
+    // Apply a power scale to exaggerate higher values. Exponent > 1.
+    const powerScaledRank = Math.pow(normalizedRank, 2); 
+    
+    // Define max bonus size and apply it
+    const maxBonus = 40; // Max additional radius for the most important node
+    const pageRankBonus = powerScaledRank * maxBonus;
+    
+    return baseSize + pageRankBonus;
+  };
+  // --- END: New Non-Linear Scaling Logic ---
 
   // Create simulation
   simulation = d3.forceSimulation(nodes)
@@ -658,12 +684,7 @@ function renderGraph() {
       .distance(300))
     .force('charge', d3.forceManyBody().strength(-200))
     .force('center', d3.forceCenter(0, 0))
-    .force('collision', d3.forceCollide().radius(d => {
-      // Base size + PageRank-based size
-      const baseSize = d.type === 'file' ? 24 : d.type === 'class' ? 20 : 18;
-      const pageRankBonus = (d.pageRank || 0) * 800; // Scale PageRank (typically 0.0-0.1)
-      return baseSize + pageRankBonus + 5; // +5 for spacing
-    }));
+    .force('collision', d3.forceCollide().radius(d => calculateRadius(d) + 10)); // +10 for spacing
 
   // Create edges
   const link = g.append('g')
@@ -687,18 +708,12 @@ function renderGraph() {
     .data(nodes)
     .join('g')
     .attr('cursor', 'pointer')
-    .style('opacity', 0)
+    .style('opacity', (d, i) => i < lastRenderedNodeCount ? 1 : 0) // Only fade in new nodes
     .call(drag(simulation));
 
   // Add circles to nodes
   node.append('circle')
-    .attr('r', d => {
-      // Base size by type
-      const baseSize = d.type === 'file' ? 24 : d.type === 'class' ? 20 : 18;
-      // Add PageRank-based scaling
-      const pageRankBonus = (d.pageRank || 0) * 800; // Scale PageRank (typically 0.0-0.1)
-      return baseSize + pageRankBonus;
-    })
+    .attr('r', d => calculateRadius(d))
     .attr('fill', d => nodeColors[d.type] || '#8400FF')
     .attr('stroke', 'rgba(255, 255, 255, 0.3)')
     .attr('stroke-width', 2)
@@ -706,11 +721,7 @@ function renderGraph() {
 
   // Add inner glow circle
   node.append('circle')
-    .attr('r', d => {
-      const baseSize = d.type === 'file' ? 14 : d.type === 'class' ? 12 : 10;
-      const pageRankBonus = (d.pageRank || 0) * 560; // Proportionally smaller
-      return baseSize + pageRankBonus;
-    })
+    .attr('r', d => calculateRadius(d) * 0.6)
     .attr('fill', 'rgba(255, 255, 255, 0.2)')
     .style('pointer-events', 'none');
 
@@ -726,11 +737,15 @@ function renderGraph() {
     .style('pointer-events', 'none')
     .style('text-shadow', '0 2px 8px rgba(0, 0, 0, 0.8)');
 
-  // Animate nodes in
-  node.transition()
+  // Animate only new nodes in
+  node.filter((d, i) => i >= lastRenderedNodeCount)
+    .transition()
     .duration(600)
     .delay((d, i) => i * 30)
     .style('opacity', 1);
+  
+  // Update the count for next render
+  lastRenderedNodeCount = nodes.length;
 
   // Add hover effects
   node.on('mouseenter', function(event, d) {
@@ -740,11 +755,7 @@ function renderGraph() {
     d3.select(this).select('circle')
       .transition()
       .duration(200)
-      .attr('r', d => {
-        const baseSize = d.type === 'file' ? 30 : d.type === 'class' ? 26 : 24;
-        const pageRankBonus = (d.pageRank || 0) * 600;
-        return baseSize + pageRankBonus;
-      })
+      .attr('r', d => calculateRadius(d) + 6) // Add a fixed amount for hover
       .attr('stroke-width', 4);
 
     // Highlight connected edges
@@ -764,11 +775,7 @@ function renderGraph() {
     d3.select(this).select('circle')
       .transition()
       .duration(200)
-      .attr('r', d => {
-        const baseSize = d.type === 'file' ? 24 : d.type === 'class' ? 20 : 18;
-        const pageRankBonus = (d.pageRank || 0) * 800;
-        return baseSize + pageRankBonus;
-      })
+      .attr('r', d => calculateRadius(d)) // Return to original calculated radius
       .attr('stroke-width', 2);
 
     link.attr('stroke', 'rgba(132, 0, 255, 0.4)')
@@ -826,6 +833,34 @@ function renderGraph() {
   });
 
   updateStats();
+}
+
+// Save graph data to Forge storage for Rovo actions
+async function saveGraphToForge(graphData) {
+  try {
+    // Check if Forge Bridge is available
+    if (!window.Forge || typeof window.Forge.invoke !== 'function') {
+      console.log('Forge Bridge not available - running outside Forge iframe');
+      return;
+    }
+    
+    console.log('Saving graph data to Forge storage...');
+    
+    // Get Forge context for debugging
+    const ctx = await window.Forge.getContext();
+    console.log('Forge context:', ctx);
+    
+    // Call the resolver to save graph data
+    const saveResult = await window.Forge.invoke('codegraph-demo-resolver', {
+      path: '/graph/save',
+      graphData: graphData
+    });
+    
+    console.log('Graph data saved successfully:', saveResult);
+  } catch (error) {
+    console.error('Error saving graph data:', error);
+    // Don't throw - this is not critical for the main flow
+  }
 }
 
 // Update node info panel
@@ -891,6 +926,72 @@ function updateNodeInfo() {
       </div>
     `;
   }
+  
+  // Rovo Chat Instructions with Prompt Buttons
+  const rovoInstructionsHTML = `
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1);">
+      <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px; color: rgba(255,255,255,0.9);">
+         Ask Rovo AI
+      </div>
+      <div style="font-size: 12px; line-height: 1.6; color: rgba(255,255,255,0.8); margin-bottom: 12px;">
+        Click a button below to copy a prompt for Rovo Chat
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+        <button class="rovo-prompt-btn" data-prompt-type="analyze" style="
+          flex: 1;
+          min-width: 120px;
+          padding: 8px 12px;
+          background: linear-gradient(135deg, #8400FF 0%, #00D4FF 100%);
+          border: none;
+          border-radius: 4px;
+          color: white;
+          font-size: 11px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: transform 0.2s;
+        ">
+           Analyze
+        </button>
+        <button class="rovo-prompt-btn" data-prompt-type="tasks" style="
+          flex: 1;
+          min-width: 120px;
+          padding: 8px 12px;
+          background: linear-gradient(135deg, #00FF88 0%, #00D4FF 100%);
+          border: none;
+          border-radius: 4px;
+          color: white;
+          font-size: 11px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: transform 0.2s;
+        ">
+           Create Tasks
+        </button>
+        <button class="rovo-prompt-btn" data-prompt-type="improve" style="
+          flex: 1;
+          min-width: 120px;
+          padding: 8px 12px;
+          background: linear-gradient(135deg, #FFB800 0%, #FF006E 100%);
+          border: none;
+          border-radius: 4px;
+          color: white;
+          font-size: 11px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: transform 0.2s;
+        ">
+           Improvements
+        </button>
+      </div>
+      <div style="font-size: 11px; color: rgba(255,255,255,0.6); line-height: 1.5;">
+        <strong>How to use:</strong><br>
+        1. Click one of the buttons above<br>
+        2. Open Rovo Chat from the top navigation<br>
+        3. Enable "CodeGraph AI Assistant" agent<br>
+        4. Paste the prompt in chat and press Enter
+      </div>
+    </div>
+  `;
 
   nodeDetailsDiv.innerHTML = `
     <div class="node-type" style="color: ${color};">
@@ -901,11 +1002,52 @@ function updateNodeInfo() {
     </div>
     ${metadataHTML}
     ${codePreviewHTML}
+    ${rovoInstructionsHTML}
   `;
 
   nodeDetailsDiv.style.display = 'block';
   nodeDetailsDiv.style.border = `1px solid ${color}`;
   nodeDetailsDiv.style.boxShadow = `0 8px 32px ${color}40`;
+  
+  // Attach event listeners to Rovo prompt buttons
+  const rovoPromptButtons = nodeDetailsDiv.querySelectorAll('.rovo-prompt-btn');
+  rovoPromptButtons.forEach(btn => {
+    btn.addEventListener('click', function() {
+      const promptType = this.getAttribute('data-prompt-type');
+      const nodeId = node.id;
+      const nodeName = node.label || node.name || node.id;
+      
+      let prompt = '';
+      if (promptType === 'analyze') {
+        prompt = `Analyze node ${nodeId}`;
+      } else if (promptType === 'tasks') {
+        prompt = `Create tasks for node ${nodeId}`;
+      } else if (promptType === 'improve') {
+        prompt = `Suggest improvements for node ${nodeId}`;
+      }
+      
+      navigator.clipboard.writeText(prompt).then(() => {
+        const originalText = this.textContent;
+        this.textContent = '✓ Prompt copied!';
+        this.classList.add('copied');
+        setTimeout(() => {
+          this.textContent = originalText;
+          this.classList.remove('copied');
+        }, 2000);
+      }).catch(err => {
+        console.error('Failed to copy:', err);
+        const originalText = this.textContent;
+        this.textContent = '❌ Copy failed';
+        this.classList.add('error');
+        setTimeout(() => {
+          this.textContent = originalText;
+          this.classList.remove('error');
+        }, 2000);
+      });
+    });
+    
+    // Hover effects are now handled by CSS
+  });
 }
 
 // Show node details (legacy compatibility)
@@ -987,6 +1129,9 @@ async function analyzeRepository() {
         if (analysis) {
           addToGraph(file.path, analysis);
           console.log(`Added to graph. Total nodes: ${graphData.nodes.length}`);
+          
+          // Render graph after each file to show progressive updates
+          renderGraph();
         }
       } catch (e) {
         console.error(`Failed to analyze ${file.path}:`, e);
@@ -1000,6 +1145,9 @@ async function analyzeRepository() {
 
     renderGraph();
     showMessage(`Successfully analyzed ${analyzed} files! Found ${graphData.nodes.length} nodes and ${graphData.edges.length} connections.`, 'success');
+    
+    // Save graph data to Forge storage for Rovo actions
+    await saveGraphToForge(graphData);
 
   } catch (error) {
     console.error('Analysis error:', error);
@@ -1028,6 +1176,7 @@ function clearGraph() {
   fileContents.clear();
   selectedNode = null;
   hoveredNode = null;
+  lastRenderedNodeCount = 0; // Reset animation counter
   if (simulation) {
     simulation.stop();
   }
@@ -1110,3 +1259,4 @@ document.addEventListener('DOMContentLoaded', function() {
   initLegend();
   showMessage('Ready to analyze GitHub repositories (up to 50 files)', 'info');
 });
+
