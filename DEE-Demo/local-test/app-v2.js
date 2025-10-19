@@ -1,10 +1,7 @@
 // CodeGraph UW - Full GitHub Repository Analyzer
-// Gemini API Configuration
-const GEMINI_API_KEY = 'AIzaSyDqUF1H5zH-NhBxYiZjrqQlN3Nnyo9mkZ0';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
-
-// GitHub configuration
-const GITHUB_TOKEN = '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';
+// API Keys - Will be fetched from Forge or use defaults for local testing
+let GEMINI_API_KEY = 'XXX'; // Default for local testing
+let GITHUB_TOKEN = 'ghp_XXX'; // Default for local testing
 
 // Graph data
 let graphData = { nodes: [], edges: [] };
@@ -24,6 +21,26 @@ const edgeCountEl = document.getElementById('edgeCount');
 const fileListEl = document.getElementById('fileList');
 const nodeDetailsDiv = document.getElementById('nodeDetails');
 
+// Fetch API keys from Forge backend if available
+async function fetchAPIKeys() {
+  try {
+    if (typeof AP !== 'undefined' && AP.context) {
+      // Running in Forge - fetch keys from backend
+      const response = await AP.request('/keys');
+      if (response && response.body) {
+        const data = JSON.parse(response.body);
+        if (data.geminiKey) GEMINI_API_KEY = data.geminiKey;
+        if (data.githubToken) GITHUB_TOKEN = data.githubToken;
+        console.log('✓ API keys loaded from Forge environment variables');
+      }
+    } else {
+      console.log('⚠ Running locally - using hardcoded API keys');
+    }
+  } catch (e) {
+    console.warn('Could not fetch API keys from Forge, using defaults:', e);
+  }
+}
+
 // Parse GitHub URL
 function parseGitHubUrl(url) {
   const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
@@ -37,9 +54,11 @@ function parseGitHubUrl(url) {
 // Fetch repository file tree from GitHub
 async function fetchRepoTree(owner, repo, branch = 'main') {
   const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
-  const response = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
-  });
+  const headers = {};
+  if (GITHUB_TOKEN) {
+    headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
+  }
+  const response = await fetch(url, { headers });
 
   if (!response.ok) {
     throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
@@ -59,9 +78,11 @@ async function fetchRepoTree(owner, repo, branch = 'main') {
 // Fetch file content from GitHub
 async function fetchFileContent(owner, repo, path, branch = 'main') {
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
-  const response = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
-  });
+  const headers = {};
+  if (GITHUB_TOKEN) {
+    headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
+  }
+  const response = await fetch(url, { headers });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch ${path}: ${response.status}`);
@@ -73,6 +94,8 @@ async function fetchFileContent(owner, repo, path, branch = 'main') {
 
 // Analyze code with Gemini AI
 async function analyzeWithGemini(code, filename) {
+  const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+
   const prompt = `Analyze this code and identify what FUNCTIONAL BLOCK it represents in the repository.
 
 File: ${filename}
@@ -562,6 +585,15 @@ async function analyzeRepository() {
   fileContents.clear();
 
   try {
+    // Fetch API keys from Forge if available
+    await fetchAPIKeys();
+
+    if (!GEMINI_API_KEY) {
+      showMessage('Error: Gemini API key not configured. Please set GEMINI_API_KEY via forge variables.', 'error');
+      analyzeBtn.disabled = false;
+      return;
+    }
+
     showMessage('Fetching repository structure...', 'info');
 
     const files = await fetchRepoTree(parsed.owner, parsed.repo, branch);

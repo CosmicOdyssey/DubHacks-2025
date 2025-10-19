@@ -294,6 +294,17 @@ export const handler = async (req) => {
       };
     }
 
+    // Get API keys
+    if (path === '/keys') {
+      return {
+        body: {
+          ok: true,
+          geminiKey: process.env.GEMINI_API_KEY || '',
+          githubToken: process.env.GITHUB_TOKEN || ''
+        }
+      };
+    }
+
     // Analyze code with Gemini
     if (path === '/analyze') {
       const { code, filename, projectId = 'default' } = payload || {};
